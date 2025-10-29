@@ -24,8 +24,17 @@ import {
   Edit,
   Layers,
   Minus,
+  CheckCheck,
+  XCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AnimatedCard } from '@/components/magicui/animated-card';
+import NumberTicker from '@/components/magicui/number-ticker';
 
 type DatasetKey = 'corte' | 'trakcare';
 
@@ -1178,87 +1187,101 @@ export default function SubirCortePage() {
               </div>
 
               {/* Vista previa de datos */}
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Vista Previa</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    Primeros 7 registros del archivo cargado
-                  </p>
-                </div>
-
-                {currentState.total > 0 && !currentState.error ? (
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800">
-                    <div className="overflow-x-auto max-h-96">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0">
-                          <tr>
-                            <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
-                              #
-                            </th>
-                            {previewColumns.map((col, idx) => (
-                              <th
-                                key={idx}
-                                className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap"
-                              >
-                                {col}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Eye className="h-5 w-5" />
+                        Vista Previa
+                      </CardTitle>
+                      <CardDescription>
+                        Primeros 7 registros del archivo cargado
+                      </CardDescription>
+                    </div>
+                    {currentState.total > 0 && (
+                      <Badge variant="secondary" className="text-sm">
+                        <Database className="h-3 w-3 mr-1" />
+                        <NumberTicker value={currentState.total} /> registros
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {currentState.total > 0 && !currentState.error ? (
+                    <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                      <div className="overflow-x-auto max-h-96">
+                        <table className="w-full text-xs">
+                          <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                                #
                               </th>
-                            ))}
-                            {currentState.columns.length > 6 && (
-                              <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
-                                ...
-                              </th>
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                          {previewRows.map((row, rowIdx) => (
-                            <tr
-                              key={rowIdx}
-                              className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
-                            >
-                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 font-medium">
-                                {rowIdx + 1}
-                              </td>
-                              {previewColumns.map((col, colIdx) => (
-                                <td
-                                  key={colIdx}
-                                  className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap"
+                              {previewColumns.map((col, idx) => (
+                                <th
+                                  key={idx}
+                                  className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap"
                                 >
-                                  {String(row[col] ?? '-')}
-                                </td>
+                                  {col}
+                                </th>
                               ))}
                               {currentState.columns.length > 6 && (
-                                <td className="px-3 py-2 text-gray-400 dark:text-gray-500">···</td>
+                                <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
+                                  ...
+                                </th>
                               )}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                      <span className="text-xs text-gray-600 dark:text-gray-400">
-                        Mostrando {previewRows.length} de {currentState.total.toLocaleString('es-CL')}{' '}
-                        registros
-                      </span>
-                      {currentState.columns.length > 6 && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {currentState.columns.length - 6} columnas más
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {previewRows.map((row, rowIdx) => (
+                              <tr
+                                key={rowIdx}
+                                className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                              >
+                                <td className="px-3 py-2 text-gray-500 dark:text-gray-400 font-medium">
+                                  {rowIdx + 1}
+                                </td>
+                                {previewColumns.map((col, colIdx) => (
+                                  <td
+                                    key={colIdx}
+                                    className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap"
+                                  >
+                                    {String(row[col] ?? '-')}
+                                  </td>
+                                ))}
+                                {currentState.columns.length > 6 && (
+                                  <td className="px-3 py-2 text-gray-400 dark:text-gray-500">···</td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                          Mostrando {previewRows.length} de {currentState.total.toLocaleString('es-CL')} registros
                         </span>
-                      )}
+                        {currentState.columns.length > 6 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{currentState.columns.length - 6} columnas más
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-12 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                    <Eye className="h-12 w-12 text-gray-400 dark:text-gray-600 mb-3" />
-                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                      No hay datos para previsualizar
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                      Selecciona un archivo para ver su contenido
-                    </p>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-12 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                      <Eye className="h-12 w-12 text-gray-400 dark:text-gray-600 mb-3" />
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                        No hay datos para previsualizar
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                        Selecciona un archivo para ver su contenido
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
