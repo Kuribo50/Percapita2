@@ -61,14 +61,14 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen }: NavbarProps) 
           <div className="flex items-center space-x-3">
             <div className="hidden md:flex items-center space-x-3">
               <div className="text-right">
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2 justify-end">
-                  {user?.nombre}
+                <div className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2 justify-end">
+                  <span>{user?.nombre}</span>
                   {user?.rol && (
                     <Badge variant="secondary" className="text-xs">
                       {user.rol}
                     </Badge>
                   )}
-                </p>
+                </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{user?.rut}</p>
               </div>
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold shadow-lg">

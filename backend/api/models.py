@@ -1,34 +1,82 @@
+from typing import Optional
+
 from django.db import models
 from django.utils import timezone
 
 
 def normalize_run(value: str) -> str:
+
 	"""Sanitize RUN to standard format: XXXXXXXX-Y for reliable matching."""
 	if not value:
 		return ""
-	
+
 	# Limpiar: mantener solo dígitos, K y guiones
 	cleaned = "".join(ch for ch in value.upper() if ch.isdigit() or ch in "K-")
 	if not cleaned:
 		return ""
-	
+
 	# Si ya tiene guion, retornar tal cual
 	if "-" in cleaned:
 		return cleaned
-	
+
 	# Si no tiene guion, agregar uno entre el cuerpo y el DV
 	# El DV es el último carácter (puede ser número o K)
 	if len(cleaned) < 2:
 		return cleaned
-	
+
 	dv = cleaned[-1]
 	body = cleaned[:-1]
-	
+
 	# Validar que el cuerpo sean solo números
 	if not body.isdigit():
 		return cleaned
-	
+
 	return f"{body}-{dv}"
+
+
+MOTIVO_REPLACEMENTS = {
+	"Á": "A",
+	"À": "A",
+	"Â": "A",
+	"Ä": "A",
+	"Ã": "A",
+	"É": "E",
+	"È": "E",
+	"Ê": "E",
+	"Ë": "E",
+	"Í": "I",
+	"Ì": "I",
+	"Î": "I",
+	"Ï": "I",
+	"Ó": "O",
+	"Ò": "O",
+	"Ô": "O",
+	"Ö": "O",
+	"Õ": "O",
+	"Ú": "U",
+	"Ù": "U",
+	"Û": "U",
+	"Ü": "U",
+	"Ñ": "N",
+	"Ç": "C",
+	"�": "O",
+}
+
+
+def normalize_motivo(value: Optional[str]) -> str:
+
+	"""Normalize motivo values for consistent lookups and summaries."""
+	if not value:
+		return ""
+
+	normalized = value.upper()
+	for source, target in MOTIVO_REPLACEMENTS.items():
+		normalized = normalized.replace(source, target)
+
+	while "  " in normalized:
+		normalized = normalized.replace("  ", " ")
+
+	return normalized.strip()
 
 
 class CorteFonasa(models.Model):
@@ -43,6 +91,7 @@ class CorteFonasa(models.Model):
 	cod_genero = models.CharField(max_length=50, blank=True)
 	nombre_centro = models.CharField(max_length=255, blank=True)
 	motivo = models.CharField(max_length=255, blank=True)
+	motivo_normalizado = models.CharField(max_length=255, blank=True, default="", db_index=True)
 	creado_el = models.DateTimeField(default=timezone.now, editable=False)
 
 	class Meta:
@@ -50,7 +99,9 @@ class CorteFonasa(models.Model):
 		unique_together = ("run", "fecha_corte")
 
 	def save(self, *args, **kwargs):
+
 		self.run = normalize_run(self.run)
+		self.motivo_normalizado = normalize_motivo(self.motivo)
 		super().save(*args, **kwargs)
 
 	def __str__(self) -> str:

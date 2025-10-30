@@ -5,6 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Formateo seguro de números con locale por defecto es-CL
+export function formatNumber(
+  value: unknown,
+  locale: string = 'es-CL',
+  options?: Intl.NumberFormatOptions,
+  fallback: string = '0'
+): string {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value.toLocaleString(locale, options)
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value)
+    if (Number.isFinite(n)) return n.toLocaleString(locale, options)
+  }
+  return fallback
+}
+
 // Funciones para manejo de RUT chileno
 export function handleRutInput(value: string): string {
   // Eliminar todo excepto números y K

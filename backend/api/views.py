@@ -3,14 +3,22 @@ from typing import Dict, List, Tuple
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Q, F, Value
-from django.db.models.functions import Replace, Trim, Upper
+from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import CorteFonasa, HpTrakcare, normalize_run, NuevoUsuario, ValidacionCorte, Catalogo, HistorialCarga
+from .models import (
+    CorteFonasa,
+    HpTrakcare,
+    Catalogo,
+    HistorialCarga,
+    NuevoUsuario,
+    ValidacionCorte,
+    normalize_motivo,
+    normalize_run,
+)
 from .serializers import (
     CorteFonasaDetailSerializer,
     CorteFonasaRecordSerializer,
@@ -81,28 +89,11 @@ MONTH_NAMES_ES = [
     "Diciembre",
 ]
 
-VALIDATED_MOTIVOS = {
-    "MANTIENE INSCRIPCION",
-    "INSCRITO A FONASA",
-    "MIGRADO A FONASA",
-    "MIGRADOS A FONASA",
-    "TRASLADO POSITIVO",
-    "NUEVO USUARIO",
-    "NUEVO INSCRITO",
-}
-
+# Solo los 3 motivos que realmente aparecen en el sistema
 NON_VALIDATED_MOTIVOS = {
     "TRASLADO NEGATIVO",
-    "RECHAZO PROVISIONAL",
-    "RECHAZOS PROVISIONAL",
-    "RECHAZO PREVISIONAL",
-    "RECHAZOS PREVISIONAL",
-    "RECHAZO FALLECIDO",
-    "RECHAZOS FALLECIDO",
-    "RECHAZADO FALLECIDO",
-    "RECHAZADOS FALLECIDO",
     "RECHAZADO PREVISIONAL",
-    "RECHAZADOS PREVISIONAL",
+    "RECHAZADO FALLECIDO",
 }
 
 
@@ -160,42 +151,11 @@ def _parse_month(month_param: str | None) -> Tuple[int, int] | None:
     return None
 
 
-def _normalize_motivo_expression(field_name: str = "motivo"):
-    expr = Upper(Trim(F(field_name)))
-    replacements = {
-        "Á": "A",
-        "À": "A",
-        "Â": "A",
-        "Ä": "A",
-        "Ã": "A",
-        "É": "E",
-        "È": "E",
-        "Ê": "E",
-        "Ë": "E",
-        "Í": "I",
-        "Ì": "I",
-        "Î": "I",
-        "Ï": "I",
-        "Ó": "O",
-        "Ò": "O",
-        "Ô": "O",
-        "Ö": "O",
-        "Õ": "O",
-        "Ú": "U",
-        "Ù": "U",
-        "Û": "U",
-        "Ü": "U",
-        "Ñ": "N",
-        "Ç": "C",
-        "�": "O",
-    }
-    for source, target in replacements.items():
-        expr = Replace(expr, Value(source), Value(target))
-
-    # Reduce espacios duplicados que pueden venir de los archivos originales.
-    expr = Replace(expr, Value("  "), Value(" "))
-    expr = Replace(expr, Value("  "), Value(" "))
-    return expr
+def _motivo_priority(value: str | None) -> int:
+    normalized = normalize_motivo(value)
+    if normalized in NON_VALIDATED_MOTIVOS:
+        return 2
+    return 0
 
 
 def _build_corte_payload(instance: CorteFonasa) -> Dict[str, str | None]:
@@ -283,6 +243,7 @@ def upload_corte_fonasa(request):
     if request.method == "GET":
         month_filter = _parse_month(request.query_params.get("month"))
         search_term = _safe_str(request.query_params.get("search"))
+        centro = _safe_str(request.query_params.get("centro"))
 
         queryset = CorteFonasa.objects.all()
         if month_filter:
@@ -295,17 +256,16 @@ def upload_corte_fonasa(request):
                 | Q(ap_paterno__icontains=search_term)
                 | Q(ap_materno__icontains=search_term)
             )
+        # Filtro opcional por centro (nombre del centro en el corte FONASA)
+        if centro:
+            queryset = queryset.filter(Q(nombre_centro__icontains=centro))
 
-        annotated_queryset = queryset.annotate(
-            motivo_normalized=_normalize_motivo_expression()
-        )
+        non_validated_filter = Q(motivo_normalizado__in=NON_VALIDATED_MOTIVOS)
+        validated_filter = ~non_validated_filter
 
-        validated_filter = Q(motivo_normalized__in=VALIDATED_MOTIVOS)
-        non_validated_filter = Q(motivo_normalized__in=NON_VALIDATED_MOTIVOS)
-
-        total_count = annotated_queryset.count()
-        validated_count = annotated_queryset.filter(validated_filter).count()
-        non_validated_count = annotated_queryset.filter(non_validated_filter).count()
+        total_count = queryset.count()
+        validated_count = queryset.filter(validated_filter).count()
+        non_validated_count = queryset.filter(non_validated_filter).count()
 
         all_param = request.query_params.get("all", "").lower()
         include_all = all_param in {"1", "true", "yes"}
@@ -314,6 +274,9 @@ def upload_corte_fonasa(request):
             offset = max(int(request.query_params.get("offset", "0")), 0)
         except ValueError:
             offset = 0
+
+        # Determinar si solo queremos el summary sin datos
+        summary_only = request.query_params.get("summary_only", "").lower() in {"1", "true", "yes"}
 
         limit_value: int
         if include_all:
@@ -326,16 +289,20 @@ def upload_corte_fonasa(request):
                 parsed_limit = 500
             limit_value = max(parsed_limit, 0)
 
-        ordered_queryset = queryset.order_by("-fecha_corte", "run")
-        if limit_value == 0:
-            data_queryset = ordered_queryset[offset:]
+        # Si solo queremos el summary, no traemos rows
+        if summary_only:
+            rows = []
         else:
-            data_queryset = ordered_queryset[offset : offset + limit_value]
+            ordered_queryset = queryset.order_by("-fecha_corte", "run")
+            if limit_value == 0:
+                data_queryset = ordered_queryset[offset:]
+            else:
+                data_queryset = ordered_queryset[offset : offset + limit_value]
 
-        rows = [_build_corte_payload(instance) for instance in data_queryset]
+            rows = [_build_corte_payload(instance) for instance in data_queryset]
 
         grouped = (
-            annotated_queryset.values("fecha_corte__year", "fecha_corte__month")
+            queryset.values("fecha_corte__year", "fecha_corte__month")
             .annotate(
                 total=Count("id"),
                 validated=Count("id", filter=validated_filter),
@@ -391,6 +358,8 @@ def upload_corte_fonasa(request):
         if replace_mode and fecha_corte:
             months_to_replace.add((fecha_corte.year, fecha_corte.month))
 
+    prepared_records.sort(key=lambda item: _motivo_priority(item[0].get("motivo")))
+
     with transaction.atomic():
         if replace_mode and months_to_replace:
             for year, month in months_to_replace:
@@ -405,6 +374,8 @@ def upload_corte_fonasa(request):
                 skipped.append({"index": index, "motivo": "RUN o fecha de corte inválidos"})
                 continue
 
+            motivo_value = _safe_str(record.get("motivo"))
+
             defaults = {
                 "nombres": _safe_str(record.get("nombres")),
                 "ap_paterno": _safe_str(record.get("apPaterno")),
@@ -414,7 +385,8 @@ def upload_corte_fonasa(request):
                 "tramo": _safe_str(record.get("tramo")),
                 "cod_genero": _safe_str(record.get("codGenero")),
                 "nombre_centro": _safe_str(record.get("nombreCentro")),
-                "motivo": _safe_str(record.get("motivo")),
+                "motivo": motivo_value,
+                "motivo_normalizado": normalize_motivo(motivo_value),
             }
 
             _, created_flag = CorteFonasa.objects.update_or_create(
@@ -428,11 +400,9 @@ def upload_corte_fonasa(request):
             else:
                 updated += 1
 
-    totals_queryset = CorteFonasa.objects.all().annotate(
-        motivo_normalized=_normalize_motivo_expression()
-    )
-    validated_filter = Q(motivo_normalized__in=VALIDATED_MOTIVOS)
-    non_validated_filter = Q(motivo_normalized__in=NON_VALIDATED_MOTIVOS)
+    totals_queryset = CorteFonasa.objects.all()
+    non_validated_filter = Q(motivo_normalizado__in=NON_VALIDATED_MOTIVOS)
+    validated_filter = ~non_validated_filter
 
     total_records = totals_queryset.count()
     total_validated = totals_queryset.filter(validated_filter).count()
@@ -902,9 +872,13 @@ def validar_contra_corte(request):
                     fecha_corte=fecha_corte
                 ).first()
                 
-                if corte and corte.motivo in VALIDATED_MOTIVOS:
-                    usuario.estado = "VALIDADO"
-                    validados += 1
+                if corte:
+                    if corte.motivo_normalizado in NON_VALIDATED_MOTIVOS:
+                        usuario.estado = "NO_VALIDADO"
+                        no_validados += 1
+                    else:
+                        usuario.estado = "VALIDADO"
+                        validados += 1
                 else:
                     usuario.estado = "NO_VALIDADO"
                     no_validados += 1
@@ -1127,14 +1101,11 @@ def historial_cargas(request):
                 periodos_query |= Q(fecha_corte__year=year, fecha_corte__month=month)
 
             if periodos_query:
-                base_resumen_queryset = (
-                    CorteFonasa.objects.filter(periodos_query)
-                    .annotate(motivo_normalized=_normalize_motivo_expression())
-                )
-                resumen_validated_filter = Q(motivo_normalized__in=VALIDATED_MOTIVOS)
+                base_resumen_queryset = CorteFonasa.objects.filter(periodos_query)
                 resumen_non_validated_filter = Q(
-                    motivo_normalized__in=NON_VALIDATED_MOTIVOS
+                    motivo_normalizado__in=NON_VALIDATED_MOTIVOS
                 )
+                resumen_validated_filter = ~resumen_non_validated_filter
 
                 # Agrupar por año/mes de fecha_corte
                 resumen = (
