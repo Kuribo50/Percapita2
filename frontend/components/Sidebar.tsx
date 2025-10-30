@@ -51,7 +51,6 @@ export default function Sidebar({ isOpen }: SidebarProps) {
       ),
       submenu: [
         { title: 'Nuevos Usuarios', href: '/dashboard/nuevos-usuarios' },
-        { title: 'Traslado de Usuarios', href: '/dashboard/traslado-usuarios' },
       ],
     },
     {
@@ -85,9 +84,6 @@ export default function Sidebar({ isOpen }: SidebarProps) {
       ),
       submenu: [
         { title: 'Revisión de Usuarios Inscritos', href: '/dashboard/revision-usuarios' },
-        { title: 'Rechazos', href: '/dashboard/rechazos' },
-        { title: 'Traslados', href: '/dashboard/traslados' },
-        { title: 'Migrantes', href: '/dashboard/migrantes' },
         { title: 'Renovación de NIP', href: '/dashboard/renovacion-nip' },
         { title: 'Revisión Diaria', href: '/dashboard/revision-diaria' },
       ],
