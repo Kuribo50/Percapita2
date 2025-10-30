@@ -1,8 +1,9 @@
 export interface User {
   rut: string;
   nombre: string;
-  apellido: string;
-  email?: string;
+  apellido?: string;
+  email: string;
+  establecimiento: string;
   rol?: string;
 }
 

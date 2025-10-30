@@ -4,10 +4,18 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import RutInput from '@/components/RutInput';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { User, Building2, Mail, LogIn, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const [rut, setRut] = useState('');
-  const [password, setPassword] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [establecimiento, setEstablecimiento] = useState('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -22,20 +30,30 @@ export default function LoginPage() {
       return;
     }
 
-    if (!password) {
-      setError('Ingrese su clave');
+    if (!nombre) {
+      setError('Ingrese su nombre completo');
+      return;
+    }
+
+    if (!establecimiento) {
+      setError('Ingrese su establecimiento');
+      return;
+    }
+
+    if (!email) {
+      setError('Ingrese su correo electrónico');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const success = await login(rut, password);
+      const success = await login(rut, nombre, establecimiento, email);
       
       if (success) {
         router.push('/dashboard');
       } else {
-        setError('RUT o clave incorrectos');
+        setError('Datos incompletos o incorrectos. Verifique la información.');
       }
     } catch {
       setError('Error al iniciar sesión');
@@ -45,94 +63,139 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <div className="w-full max-w-md">
-        <div className="bg-white shadow-2xl rounded-2xl overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-950 dark:to-gray-900 p-4">
+      <div className="w-full max-w-lg">
+        <Card className="shadow-2xl">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
-            <h1 className="text-3xl font-bold text-white text-center">
-              Sistema de Gestión
-            </h1>
-            <p className="text-blue-100 text-center mt-2">
-              Inicie sesión con su cuenta
-            </p>
-          </div>
+          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4">
+                <User className="h-8 w-8" />
+              </div>
+              <CardTitle className="text-3xl font-bold">
+                Sistema de Gestión
+              </CardTitle>
+              <CardDescription className="text-blue-100 mt-2">
+                Registro de acceso al sistema
+              </CardDescription>
+            </div>
+          </CardHeader>
 
           {/* Form */}
-          <div className="px-8 py-10">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <CardContent className="pt-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {/* RUT Input */}
-              <RutInput
-                value={rut}
-                onChange={setRut}
-                label="RUT"
-                placeholder="12345678-9"
-                required
-                showError={false}
-              />
+              <div className="space-y-2">
+                <RutInput
+                  value={rut}
+                  onChange={setRut}
+                  label="RUT"
+                  placeholder="12345678-9"
+                  required
+                  showError={false}
+                />
+              </div>
 
-              {/* Password Input */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Clave
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Ingrese su clave"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+              {/* Nombre */}
+              <div className="space-y-2">
+                <Label htmlFor="nombre" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Nombre Completo
+                </Label>
+                <Input
+                  id="nombre"
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Ej: Juan Pérez González"
+                  required
+                />
+              </div>
+
+              {/* Establecimiento */}
+              <div className="space-y-2">
+                <Label htmlFor="establecimiento" className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Establecimiento
+                </Label>
+                <Input
+                  id="establecimiento"
+                  type="text"
+                  value={establecimiento}
+                  onChange={(e) => setEstablecimiento(e.target.value)}
+                  placeholder="Ej: CESFAM Los Aromos"
+                  required
+                />
+              </div>
+
+              {/* Email */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Correo Electrónico
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="ejemplo@salud.cl"
                   required
                 />
               </div>
 
               {/* Error Message */}
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                  {error}
-                </div>
+                <Card className="border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20">
+                  <CardContent className="p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
+              {/* Info Badge */}
+              <Card className="border-blue-200 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20">
+                <CardContent className="p-3">
+                  <p className="text-xs text-blue-800 dark:text-blue-300 text-center">
+                    Los datos ingresados se utilizarán para identificar sus acciones en el sistema
+                  </p>
+                </CardContent>
+              </Card>
+
               {/* Submit Button */}
-              <button
+              <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-12 text-base font-semibold"
               >
                 {isLoading ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                  <>
+                    <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                     Ingresando...
-                  </span>
+                  </>
                 ) : (
-                  'Ingresar'
+                  <>
+                    <LogIn className="h-5 w-5 mr-2" />
+                    Ingresar al Sistema
+                  </>
                 )}
-              </button>
+              </Button>
             </form>
 
-            {/* Helper Text */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-500">
-                ¿Olvidó su clave?{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">
-                  Recuperar
-                </a>
-              </p>
+            {/* Footer Info */}
+            <div className="mt-6 pt-6 border-t text-center">
+              <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <Badge variant="outline" className="text-xs">
+                  Sistema Percapita
+                </Badge>
+                <span>v2.0</span>
+              </div>
             </div>
-
-            {/* Demo Info */}
-            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-xs text-blue-800 font-semibold mb-1">Demo:</p>
-              <p className="text-xs text-blue-700">
-                Use cualquier RUT válido con clave: <span className="font-mono font-bold">123456</span>
-              </p>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
