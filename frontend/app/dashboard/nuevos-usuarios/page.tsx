@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AnimatedCard } from '@/components/magicui/animated-card';
 import NumberTicker from '@/components/magicui/number-ticker';
 import {
@@ -205,11 +206,15 @@ export default function NuevosUsuariosPage() {
                 <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.title}</p>
-                        <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                          {loading ? '...' : <NumberTicker value={stat.value} />}
-                        </p>
+                        {loading ? (
+                          <Skeleton className="h-9 w-20 mt-2" />
+                        ) : (
+                          <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
+                            <NumberTicker value={stat.value} />
+                          </p>
+                        )}
                       </div>
                       <div className={`p-3 rounded-xl ${stat.bgColor}`}>
                         <Icon className={`h-6 w-6 ${stat.iconColor}`} />
@@ -273,14 +278,32 @@ export default function NuevosUsuariosPage() {
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr>
-                        <td colSpan={6} className="text-center py-12">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                            <span className="text-gray-600 dark:text-gray-400">Cargando usuarios...</span>
-                          </div>
-                        </td>
-                      </tr>
+                      Array.from({ length: 5 }).map((_, index) => (
+                        <tr key={index} className="border-b border-gray-100 dark:border-gray-800">
+                          <td className="p-4">
+                            <Skeleton className="h-5 w-28" />
+                          </td>
+                          <td className="p-4">
+                            <Skeleton className="h-5 w-40" />
+                          </td>
+                          <td className="p-4">
+                            <Skeleton className="h-5 w-24" />
+                          </td>
+                          <td className="p-4">
+                            <Skeleton className="h-5 w-16" />
+                          </td>
+                          <td className="p-4">
+                            <Skeleton className="h-6 w-20 rounded-full" />
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <Skeleton className="h-8 w-8 rounded-lg" />
+                              <Skeleton className="h-8 w-8 rounded-lg" />
+                              <Skeleton className="h-8 w-8 rounded-lg" />
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     ) : usuarios.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="text-center py-12">

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatNumber } from '@/lib/utils';
+import { chartColors } from '@/lib/colors';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   XAxis,
@@ -245,9 +246,9 @@ export default function DashboardPage() {
   // Validation pie chart data - SOLO del último corte
   const validationPieData = useMemo(() => {
     return [
-      { name: 'Validados', value: validadosUltimoCorte, color: '#10b981' },
-      { name: 'No Validados', value: noValidadosUltimoCorte, color: '#ef4444' },
-      { name: 'Por Revisar', value: porRevisarUltimoCorte, color: '#f59e0b' }
+      { name: 'Validados', value: validadosUltimoCorte, color: chartColors.success },
+      { name: 'No Validados', value: noValidadosUltimoCorte, color: chartColors.danger },
+      { name: 'Por Revisar', value: porRevisarUltimoCorte, color: chartColors.warning }
     ].filter(item => item.value > 0);
   }, [validadosUltimoCorte, noValidadosUltimoCorte, porRevisarUltimoCorte]);
 
@@ -486,13 +487,13 @@ export default function DashboardPage() {
                         }}
                       />
                       <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                      <Line 
-                        type="monotone" 
-                        dataKey="total" 
-                        stroke="#6366f1" 
+                      <Line
+                        type="monotone"
+                        dataKey="total"
+                        stroke={chartColors.primary}
                         strokeWidth={3}
                         name="Total Registros"
-                        dot={{ fill: '#6366f1', r: 5 }}
+                        dot={{ fill: chartColors.primary, r: 5 }}
                         activeDot={{ r: 8 }}
                       />
                     </LineChart>
