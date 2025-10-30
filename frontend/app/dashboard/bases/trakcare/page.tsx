@@ -392,7 +392,7 @@ export default function TrakcarePage() {
                               key={`${row.id}-${col}`}
                               className="px-4 py-3 text-gray-700 dark:text-gray-300 text-xs"
                             >
-                              <span className="truncate block max-w-xs">{row[col] ?? '—'}</span>
+                              <span className="truncate block max-w-xs">{String(row[col] ?? '—')}</span>
                             </td>
                           ))}
                           <td className="px-4 py-3 text-right">

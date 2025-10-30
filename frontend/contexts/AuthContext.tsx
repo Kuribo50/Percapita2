@@ -5,7 +5,7 @@ import { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
-  login: (rut: string, password: string) => Promise<boolean>;
+  login: (rut: string, nombre: string, establecimiento: string, email: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   isReady: boolean;
@@ -32,25 +32,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const login = async (rut: string, password: string): Promise<boolean> => {
-    // Simulación de login (aquí conectarás con tu API de Django)
-    // Por ahora acepta cualquier RUT válido con password "123456"
-    if (password === '123456') {
-      const userData: User = {
-        rut,
-        nombre: 'Usuario',
-        apellido: 'Demo',
-        email: 'usuario@demo.cl',
-        rol: 'admin',
-      };
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(userData));
-      return true;
+  const login = async (
+    rut: string,
+    nombre: string,
+    establecimiento: string,
+    email: string
+  ): Promise<boolean> => {
+    // Validación de campos requeridos
+    if (!rut || !nombre || !establecimiento || !email) {
+      return false;
     }
-    
-    return false;
+
+    // Validación básica de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return false;
+    }
+
+    // Crear usuario con los datos proporcionados
+    const userData: User = {
+      rut,
+      nombre,
+      establecimiento,
+      email,
+      rol: 'admin',
+    };
+
+    setUser(userData);
+    setIsAuthenticated(true);
+    localStorage.setItem('user', JSON.stringify(userData));
+    return true;
   };
 
   const logout = () => {
