@@ -2,200 +2,171 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import RutInput from '@/components/RutInput';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { User, Building2, Mail, LogIn, AlertCircle } from 'lucide-react';
+import { AlertCircle, LogIn, UserPlus } from 'lucide-react';
 
 export default function LoginPage() {
-  const [rut, setRut] = useState('');
-  const [nombre, setNombre] = useState('');
-  const [establecimiento, setEstablecimiento] = useState('');
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
+  const [rut, setRut] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!rut) {
-      setError('Ingrese su RUT');
-      return;
-    }
-
-    if (!nombre) {
-      setError('Ingrese su nombre completo');
-      return;
-    }
-
-    if (!establecimiento) {
-      setError('Ingrese su establecimiento');
-      return;
-    }
-
-    if (!email) {
-      setError('Ingrese su correo electrónico');
-      return;
-    }
-
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      const success = await login(rut, nombre, establecimiento, email);
+      const result = await login(rut, password);
       
-      if (success) {
+      if (result.success) {
         router.push('/dashboard');
       } else {
-        setError('Datos incompletos o incorrectos. Verifique la información.');
+        setError(result.message || 'Error al iniciar sesión');
       }
-    } catch {
-      setError('Error al iniciar sesión');
+    } catch (err) {
+      setError('Error al conectar con el servidor');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-950 dark:to-gray-900 p-4">
-      <div className="w-full max-w-lg">
-        <Card className="shadow-2xl">
-          {/* Header */}
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
-            <div className="text-center">
-              <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4">
-                <User className="h-8 w-8" />
-              </div>
-              <CardTitle className="text-3xl font-bold">
-                Sistema de Gestión
-              </CardTitle>
-              <CardDescription className="text-blue-100 mt-2">
-                Registro de acceso al sistema
-              </CardDescription>
-            </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 px-4">
+      <div className="w-full max-w-md">
+        {/* Logo/Title */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 mb-4 shadow-lg">
+            <LogIn className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Bienvenido
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Sistema de Gestión Percapita
+          </p>
+        </div>
+
+        {/* Login Card */}
+        <Card className="shadow-2xl border-0">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
+            <CardDescription>
+              Ingresa tu RUT y contraseña para acceder
+            </CardDescription>
           </CardHeader>
-
-          {/* Form */}
-          <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* RUT Input */}
-              <div className="space-y-2">
-                <RutInput
-                  value={rut}
-                  onChange={setRut}
-                  label="RUT"
-                  placeholder="12345678-9"
-                  required
-                  showError={false}
-                />
-              </div>
-
-              {/* Nombre */}
-              <div className="space-y-2">
-                <Label htmlFor="nombre" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Nombre Completo
-                </Label>
-                <Input
-                  id="nombre"
-                  type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder="Ej: Juan Pérez González"
-                  required
-                />
-              </div>
-
-              {/* Establecimiento */}
-              <div className="space-y-2">
-                <Label htmlFor="establecimiento" className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Establecimiento
-                </Label>
-                <Input
-                  id="establecimiento"
-                  type="text"
-                  value={establecimiento}
-                  onChange={(e) => setEstablecimiento(e.target.value)}
-                  placeholder="Ej: CESFAM Los Aromos"
-                  required
-                />
-              </div>
-
-              {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  Correo Electrónico
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ejemplo@salud.cl"
-                  required
-                />
-              </div>
-
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
               {/* Error Message */}
               {error && (
-                <Card className="border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20">
-                  <CardContent className="p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                      <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                </div>
               )}
 
-              {/* Info Badge */}
-              <Card className="border-blue-200 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20">
-                <CardContent className="p-3">
-                  <p className="text-xs text-blue-800 dark:text-blue-300 text-center">
-                    Los datos ingresados se utilizarán para identificar sus acciones en el sistema
-                  </p>
-                </CardContent>
-              </Card>
+              {/* RUT Field */}
+              <div className="space-y-2">
+                <Label htmlFor="rut">RUT</Label>
+                <Input
+                  id="rut"
+                  type="text"
+                  placeholder="12.345.678-9"
+                  value={rut}
+                  onChange={(e) => setRut(e.target.value)}
+                  required
+                  className="h-11"
+                  autoComplete="username"
+                />
+              </div>
 
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-12 text-base font-semibold"
+              {/* Password Field */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <Link 
+                    href="/recuperar-password" 
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11"
+                  autoComplete="current-password"
+                />
+              </div>
+
+              {/* Login Button */}
+              <Button 
+                type="submit" 
+                className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                disabled={loading}
               >
-                {isLoading ? (
-                  <>
-                    <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    Ingresando...
-                  </>
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Iniciando sesión...
+                  </div>
                 ) : (
-                  <>
-                    <LogIn className="h-5 w-5 mr-2" />
-                    Ingresar al Sistema
-                  </>
+                  <div className="flex items-center gap-2">
+                    <LogIn className="h-4 w-4" />
+                    Iniciar Sesión
+                  </div>
                 )}
               </Button>
             </form>
 
-            {/* Footer Info */}
-            <div className="mt-6 pt-6 border-t text-center">
-              <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                <Badge variant="outline" className="text-xs">
-                  Sistema Percapita
-                </Badge>
-                <span>v2.0</span>
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white dark:bg-gray-950 px-2 text-gray-500">
+                  ¿No tienes cuenta?
+                </span>
               </div>
             </div>
+
+            {/* Register Link */}
+            <Link href="/register">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full h-11 border-2 hover:bg-gray-50 dark:hover:bg-gray-900"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Crear Nueva Cuenta
+              </Button>
+            </Link>
           </CardContent>
         </Card>
+
+        {/* Footer */}
+        <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-8">
+          Al iniciar sesión, aceptas nuestros{' '}
+          <Link href="/terminos" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">
+            Términos de Servicio
+          </Link>
+          {' '}y{' '}
+          <Link href="/privacidad" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">
+            Política de Privacidad
+          </Link>
+        </p>
       </div>
     </div>
   );
