@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
+import { SelectedNuevoUsuarioProvider } from '@/contexts/SelectedNuevoUsuarioContext';
 
 export default function DashboardLayout({
   children,
@@ -12,7 +13,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { isAuthenticated, isReady } = useAuth();
+  const { isAuthenticated, isReady, user, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -20,6 +21,8 @@ export default function DashboardLayout({
       router.replace('/login');
     }
   }, [isReady, isAuthenticated, router]);
+
+  const sidebarWidth = isSidebarOpen ? '18rem' : '4rem';
 
   if (!isReady) {
     return (
@@ -34,19 +37,26 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar 
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-        isSidebarOpen={isSidebarOpen}
-      />
-      
-      <Sidebar isOpen={isSidebarOpen} />
+    <SelectedNuevoUsuarioProvider>
+      <div className="relative min-h-screen bg-muted/40 dark:bg-background">
+        <Navbar
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarOpen={isSidebarOpen}
+          user={user}
+          onLogout={logout}
+        />
 
-      <main className={`pt-16 transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : ''}`}>
-        <div className="p-6">
-          {children}
-        </div>
-      </main>
-    </div>
+        <Sidebar isOpen={isSidebarOpen} />
+
+        <main
+          className="flex-1 transition-[margin-left] duration-300 ease-out"
+          style={{ marginLeft: sidebarWidth, paddingTop: '4rem' }}
+        >
+          <div className="min-h-[calc(100vh-4rem)] px-6 py-8">
+            {children}
+          </div>
+        </main>
+      </div>
+    </SelectedNuevoUsuarioProvider>
   );
 }

@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  Calendar, 
-  Database, 
-  FileText, 
-  Trash2, 
-  Eye, 
-  Download, 
-  AlertCircle, 
+import {
+  Calendar,
+  Database,
+  FileText,
+  Trash2,
+  Eye,
+  Download,
+  AlertCircle,
   CheckCircle,
   TrendingUp,
   Filter,
@@ -18,8 +18,18 @@ import {
   ArrowUpDown,
   ChevronLeft,
   BarChart3,
-  Info
+  Info,
+  CheckCheck,
+  XCircle
 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { AnimatedCard } from '@/components/magicui/animated-card';
+import NumberTicker from '@/components/magicui/number-ticker';
+import { ShineBorder } from '@/components/magicui/shine-border';
 
 type CorteMensual = {
   month: string;
@@ -71,7 +81,7 @@ export default function GestionCortesPage() {
       const data = await response.json();
       
       // Extraer los cortes del summary
-      const cortesData: CorteMensual[] = (data.summary || []).map((item: any) => {
+      const cortesData: CorteMensual[] = (data.summary || []).map((item: { month: string; label: string; total?: number; validated?: number; nonValidated?: number; non_validated?: number; }) => {
         const [year, month] = item.month.split('-').map(Number);
         return {
           month: item.month,
@@ -316,55 +326,81 @@ export default function GestionCortesPage() {
           <div className="space-y-6">
             {/* Estadísticas Generales */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                    <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <TrendingUp className="h-5 w-5 text-gray-400" />
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Total de Períodos</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{cortes.length}</p>
-              </div>
+              <AnimatedCard delay={0}>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                        <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <Badge variant="secondary">Períodos</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-3xl font-bold mb-1">
+                      <NumberTicker value={cortes.length} />
+                    </CardTitle>
+                    <CardDescription>Total de períodos cargados</CardDescription>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
 
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
-                    <Database className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-                  </div>
-                  <Info className="h-5 w-5 text-gray-400" />
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Total Registros</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {totalRegistros.toLocaleString('es-CL')}
-                </p>
-              </div>
+              <AnimatedCard delay={0.1}>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
+                        <Database className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+                      </div>
+                      <Badge variant="secondary">Registros</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-3xl font-bold mb-1">
+                      <NumberTicker value={totalRegistros} />
+                    </CardTitle>
+                    <CardDescription>Total de registros en el sistema</CardDescription>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
 
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                    <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-                  </div>
-                  <TrendingUp className="h-5 w-5 text-green-400" />
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Validados</p>
-                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                  {totalValidados.toLocaleString('es-CL')}
-                </p>
-              </div>
+              <AnimatedCard delay={0.2}>
+                <Card className="border-green-200 dark:border-green-900/50">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                        <CheckCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
+                      </div>
+                      <Badge variant="success">Validados</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">
+                      <NumberTicker value={totalValidados} />
+                    </CardTitle>
+                    <CardDescription>Registros validados correctamente</CardDescription>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
 
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                    <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <Info className="h-5 w-5 text-gray-400" />
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Tasa Validación</p>
-                <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-                  {tasaValidacionGlobal}%
-                </p>
-              </div>
+              <AnimatedCard delay={0.3}>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                        <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <Badge variant="outline">Métrica</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-1">
+                      {tasaValidacionGlobal}%
+                    </CardTitle>
+                    <CardDescription>Tasa global de validación</CardDescription>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
             </div>
 
             {/* Filtros y Búsqueda */}
@@ -442,119 +478,141 @@ export default function GestionCortesPage() {
                     </p>
                   </div>
                 ) : (
-                  filteredCortes.map((corte) => {
+                  filteredCortes.map((corte, index) => {
                     const porcentajeValidado = calcularPorcentaje(corte.validated, corte.total);
                     const porcentajeError = calcularPorcentaje(corte.nonValidated, corte.total);
-                    
+                    const tasaValidacion = porcentajeValidado;
+
                     return (
-                      <div 
-                        key={corte.month} 
-                        className="p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
-                      >
-                        <div className="flex items-center justify-between">
-                          {/* Información del corte */}
-                          <div className="flex-1">
-                            <div className="flex items-center gap-4 mb-4">
-                              <div className="rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-900/20 p-3">
-                                <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                      <AnimatedCard key={corte.month} delay={index * 0.05}>
+                        <div className="p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
+                          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                            {/* Información del corte */}
+                            <div className="flex-1">
+                              <div className="flex items-start gap-4 mb-6">
+                                <div className="rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-900/20 p-3">
+                                  <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                      {corte.label}
+                                    </h3>
+                                    {tasaValidacion >= 95 ? (
+                                      <Badge variant="success" className="flex items-center gap-1">
+                                        <CheckCheck className="h-3 w-3" />
+                                        Excelente
+                                      </Badge>
+                                    ) : tasaValidacion >= 80 ? (
+                                      <Badge variant="outline" className="flex items-center gap-1 border-green-500 text-green-600">
+                                        <CheckCircle className="h-3 w-3" />
+                                        Bueno
+                                      </Badge>
+                                    ) : tasaValidacion >= 60 ? (
+                                      <Badge variant="warning" className="flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3" />
+                                        Regular
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="destructive" className="flex items-center gap-1">
+                                        <XCircle className="h-3 w-3" />
+                                        Bajo
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Código: <span className="font-mono font-semibold">{corte.month}</span>
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                  {corte.label}
-                                </h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                                  Código: <span className="font-mono">{corte.month}</span>
-                                </p>
+
+                              {/* Estadísticas Grid */}
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {/* Total */}
+                                <div className="space-y-2">
+                                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center gap-2">
+                                    <Database className="h-3.5 w-3.5" />
+                                    Total Registros
+                                  </p>
+                                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {corte.total.toLocaleString('es-CL')}
+                                  </p>
+                                </div>
+
+                                {/* Validados */}
+                                <Card className="border-green-200 dark:border-green-900/50 bg-green-50/50 dark:bg-green-950/20">
+                                  <CardContent className="p-4 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide flex items-center gap-1.5">
+                                        <CheckCheck className="h-3.5 w-3.5" />
+                                        Validados
+                                      </p>
+                                      <Badge variant="success" className="text-xs">
+                                        {porcentajeValidado}%
+                                      </Badge>
+                                    </div>
+                                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                      {corte.validated.toLocaleString('es-CL')}
+                                    </p>
+                                    <Progress value={porcentajeValidado} className="h-2 bg-green-100 dark:bg-green-950">
+                                      <div className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all" />
+                                    </Progress>
+                                  </CardContent>
+                                </Card>
+
+                                {/* No Validados */}
+                                <Card className="border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20">
+                                  <CardContent className="p-4 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide flex items-center gap-1.5">
+                                        <XCircle className="h-3.5 w-3.5" />
+                                        No Validados
+                                      </p>
+                                      <Badge variant="destructive" className="text-xs">
+                                        {porcentajeError}%
+                                      </Badge>
+                                    </div>
+                                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                                      {corte.nonValidated.toLocaleString('es-CL')}
+                                    </p>
+                                    <Progress value={porcentajeError} className="h-2 bg-red-100 dark:bg-red-950">
+                                      <div className="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all" />
+                                    </Progress>
+                                  </CardContent>
+                                </Card>
                               </div>
                             </div>
 
-                            {/* Estadísticas Grid */}
-                            <div className="grid grid-cols-3 gap-6 ml-16">
-                              {/* Total */}
-                              <div className="space-y-2">
-                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                  Total Registros
-                                </p>
-                                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                  {corte.total.toLocaleString('es-CL')}
-                                </p>
-                              </div>
-
-                              {/* Validados */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                    Validados
-                                  </p>
-                                  <span className="text-xs font-bold text-green-600 dark:text-green-400">
-                                    {porcentajeValidado}%
-                                  </span>
-                                </div>
-                                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                  {corte.validated.toLocaleString('es-CL')}
-                                </p>
-                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                                  <div 
-                                    className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-500" 
-                                    style={{ width: `${porcentajeValidado}%` }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* No Validados */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                    No Validados
-                                  </p>
-                                  <span className="text-xs font-bold text-red-600 dark:text-red-400">
-                                    {porcentajeError}%
-                                  </span>
-                                </div>
-                                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                                  {corte.nonValidated.toLocaleString('es-CL')}
-                                </p>
-                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                                  <div 
-                                    className="bg-gradient-to-r from-red-500 to-red-600 h-2 rounded-full transition-all duration-500" 
-                                    style={{ width: `${porcentajeError}%` }}
-                                  />
-                                </div>
-                              </div>
+                            {/* Acciones */}
+                            <div className="flex lg:flex-col gap-2">
+                              <Button asChild variant="outline" className="flex-1 lg:flex-none">
+                                <Link href={`/dashboard/bases/corte/${corte.month}`}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver detalles
+                                </Link>
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => eliminarCorte(corte.month, corte.label)}
+                                disabled={eliminando === corte.month}
+                                className="flex-1 lg:flex-none"
+                              >
+                                {eliminando === corte.month ? (
+                                  <>
+                                    <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    Eliminando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Eliminar
+                                  </>
+                                )}
+                              </Button>
                             </div>
-                          </div>
-
-                          {/* Acciones */}
-                          <div className="flex flex-col gap-2 ml-8">
-                            <Link
-                              href={`/dashboard/bases/corte/${corte.month}`}
-                              className="flex items-center gap-2 px-4 py-2.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors font-medium"
-                              title="Ver detalles"
-                            >
-                              <Eye className="h-5 w-5" />
-                              Ver detalles
-                            </Link>
-                            <button
-                              onClick={() => eliminarCorte(corte.month, corte.label)}
-                              disabled={eliminando === corte.month}
-                              className="flex items-center gap-2 px-4 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Eliminar"
-                            >
-                              {eliminando === corte.month ? (
-                                <>
-                                  <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                                  Eliminando...
-                                </>
-                              ) : (
-                                <>
-                                  <Trash2 className="h-5 w-5" />
-                                  Eliminar
-                                </>
-                              )}
-                            </button>
                           </div>
                         </div>
-                      </div>
+                      </AnimatedCard>
                     );
                   })
                 )}

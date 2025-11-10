@@ -1,33 +1,68 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { use, useCallback, useEffect, useMemo, useState } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Edit2, 
-  Save, 
-  X, 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Edit2,
+  Save,
+  X,
   Trash2,
   AlertCircle,
   CheckCircle2,
   Calendar,
   Database,
   Filter,
-  Download,
   RefreshCw,
-  Search
-} from 'lucide-react';
+  Search,
+} from "lucide-react";
 
 import {
   EDITABLE_FIELDS,
   DatasetRecord,
   buildDetailUrl,
   buildEndpointUrl,
-} from '../../data';
+} from "../../data";
 
-type NotificationType = 'success' | 'error' | 'info' | 'warning';
+const CORTE_VISIBLE_COLUMNS = [
+  "run",
+  "nombres",
+  "apPaterno",
+  "apMaterno",
+  "fechaNacimiento",
+  "genero",
+  "tramo",
+  "fehcaCorte",
+  "nombreCentro",
+  "centroDeProcedencia",
+  "comunaDeProcedencia",
+  "centroActual",
+  "comunaActual",
+  "aceptadoRechazado",
+  "motivo",
+];
+
+const CORTE_COLUMN_LABELS: Record<string, string> = {
+  run: "RUN",
+  nombres: "Nombres",
+  apPaterno: "Apellido paterno",
+  apMaterno: "Apellido materno",
+  fechaNacimiento: "Fecha de nacimiento",
+  genero: "Género",
+  tramo: "Tramo",
+  fehcaCorte: "Fecha corte",
+  nombreCentro: "Centro",
+  centroDeProcedencia: "Centro de procedencia",
+  comunaDeProcedencia: "Comuna de procedencia",
+  centroActual: "Centro actual",
+  comunaActual: "Comuna actual",
+  aceptadoRechazado: "Aceptado/Rechazado",
+  motivo: "Motivo",
+};
+
+type NotificationType = "success" | "error" | "info" | "warning";
 
 type Notification = {
   type: NotificationType;
@@ -35,10 +70,13 @@ type Notification = {
 } | null;
 
 const NOTIFICATION_STYLES: Record<NotificationType, string> = {
-  success: 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-200',
-  error: 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-200',
-  warning: 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-200',
-  info: 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-200',
+  success:
+    "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-200",
+  error:
+    "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-200",
+  warning:
+    "border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-200",
+  info: "border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-200",
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -49,7 +87,7 @@ interface PageProps {
 
 export default function CorteMonthPage({ params }: PageProps) {
   const resolvedParams = use(params);
-  const monthKey = decodeURIComponent(resolvedParams.month ?? '').trim();
+  const monthKey = decodeURIComponent(resolvedParams.month ?? "").trim();
   const router = useRouter();
 
   const [page, setPage] = useState(1);
@@ -59,19 +97,26 @@ export default function CorteMonthPage({ params }: PageProps) {
   const [total, setTotal] = useState(0);
   const [validated, setValidated] = useState(0);
   const [nonValidated, setNonValidated] = useState(0);
-  const [monthLabel, setMonthLabel] = useState<string>(monthKey || 'Periodo sin fecha');
+  const [monthLabel, setMonthLabel] = useState<string>(
+    monthKey || "Periodo sin fecha"
+  );
   const [notification, setNotification] = useState<Notification>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [editingRecord, setEditingRecord] = useState<DatasetRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<DatasetRecord | null>(
+    null
+  );
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isSavingRecord, setIsSavingRecord] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const visibleColumns = useMemo(
-    () => columns.filter((column) => column !== 'id'),
-    [columns],
-  );
+  const visibleColumns = useMemo(() => {
+    const sanitizedColumns = columns.filter((column) => column !== "id");
+    const orderedColumns = CORTE_VISIBLE_COLUMNS.filter((column) =>
+      sanitizedColumns.includes(column)
+    );
+    return orderedColumns.length ? orderedColumns : sanitizedColumns;
+  }, [columns]);
 
   const fetchData = useCallback(
     async (pageValue: number, pageSizeValue: number) => {
@@ -80,15 +125,18 @@ export default function CorteMonthPage({ params }: PageProps) {
       try {
         const offset = (pageValue - 1) * pageSizeValue;
         const response = await fetch(
-          buildEndpointUrl('corte', {
+          buildEndpointUrl("corte", {
             month: monthKey,
             params: { offset, limit: pageSizeValue },
-          }),
+          })
         );
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.detail ?? 'Error al cargar datos.');
+        if (!response.ok)
+          throw new Error(payload.detail ?? "Error al cargar datos.");
 
-        const fetchedColumns = Array.isArray(payload.columns) ? (payload.columns as string[]) : [];
+        const fetchedColumns = Array.isArray(payload.columns)
+          ? (payload.columns as string[])
+          : [];
         const fetchedRows = Array.isArray(payload.rows)
           ? (payload.rows as Array<Record<string, unknown>>).map((row) => ({
               ...row,
@@ -96,28 +144,34 @@ export default function CorteMonthPage({ params }: PageProps) {
             }))
           : [];
 
-        setColumns(fetchedColumns);
+        const filteredColumns = CORTE_VISIBLE_COLUMNS.filter((column) =>
+          fetchedColumns.includes(column)
+        );
+        setColumns(filteredColumns.length ? filteredColumns : fetchedColumns);
         setRows(fetchedRows as DatasetRecord[]);
         setTotal(Number(payload.total ?? fetchedRows.length));
         setValidated(Number(payload.validated ?? 0));
-        setNonValidated(Number(payload.non_validated ?? payload.nonValidated ?? 0));
+        setNonValidated(
+          Number(payload.non_validated ?? payload.nonValidated ?? 0)
+        );
 
         if (payload.label) {
           setMonthLabel(payload.label);
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Error al cargar.';
-        setNotification({ type: 'error', message });
+        const message =
+          error instanceof Error ? error.message : "Error al cargar.";
+        setNotification({ type: "error", message });
       } finally {
         setIsLoading(false);
       }
     },
-    [monthKey],
+    [monthKey]
   );
 
   useEffect(() => {
     if (!monthKey) {
-      setNotification({ type: 'error', message: 'Periodo no válido.' });
+      setNotification({ type: "error", message: "Periodo no válido." });
       setIsLoading(false);
       return;
     }
@@ -142,10 +196,13 @@ export default function CorteMonthPage({ params }: PageProps) {
 
   const handleOpenEditor = (record: DatasetRecord) => {
     setEditingRecord(record);
-    const initialValues = EDITABLE_FIELDS.corte.reduce<Record<string, string>>((acc, field) => {
-      acc[field.key] = String(record[field.key] ?? '');
-      return acc;
-    }, {});
+    const initialValues = EDITABLE_FIELDS.corte.reduce<Record<string, string>>(
+      (acc, field) => {
+        acc[field.key] = String(record[field.key] ?? "");
+        return acc;
+      },
+      {}
+    );
     setFormValues(initialValues);
   };
 
@@ -153,32 +210,36 @@ export default function CorteMonthPage({ params }: PageProps) {
     if (!editingRecord) return;
 
     setIsSavingRecord(true);
-    const payload = Object.entries(formValues).reduce<Record<string, string | null>>(
-      (acc, [key, value]) => {
-        const trimmed = value.trim();
-        acc[key] = trimmed === '' ? null : trimmed;
-        return acc;
-      },
-      {},
-    );
+    const payload = Object.entries(formValues).reduce<
+      Record<string, string | null>
+    >((acc, [key, value]) => {
+      const trimmed = value.trim();
+      acc[key] = trimmed === "" ? null : trimmed;
+      return acc;
+    }, {});
 
     try {
-      const response = await fetch(buildDetailUrl('corte', editingRecord.id), {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch(buildDetailUrl("corte", editingRecord.id), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail ?? 'No se pudo actualizar.');
+      if (!response.ok)
+        throw new Error(data.detail ?? "No se pudo actualizar.");
 
-      setNotification({ type: 'success', message: '✓ Registro actualizado correctamente' });
+      setNotification({
+        type: "success",
+        message: "✓ Registro actualizado correctamente",
+      });
       setEditingRecord(null);
       setFormValues({});
       await fetchData(page, pageSize);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al guardar.';
-      setNotification({ type: 'error', message });
+      const message =
+        error instanceof Error ? error.message : "Error al guardar.";
+      setNotification({ type: "error", message });
     } finally {
       setIsSavingRecord(false);
     }
@@ -192,35 +253,42 @@ export default function CorteMonthPage({ params }: PageProps) {
     );
 
     if (!password?.trim()) {
-      setNotification({ type: 'info', message: 'Operación cancelada.' });
+      setNotification({ type: "info", message: "Operación cancelada." });
       return;
     }
 
     setIsDeleting(true);
     try {
-      const response = await fetch(buildEndpointUrl('corte', { month: monthKey }), {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ admin_password: password.trim() }),
-      });
+      const response = await fetch(
+        buildEndpointUrl("corte", { month: monthKey }),
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ admin_password: password.trim() }),
+        }
+      );
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.detail ?? 'No se pudo eliminar.');
+        throw new Error(data.detail ?? "No se pudo eliminar.");
       }
 
-      setNotification({ type: 'success', message: '✓ Periodo eliminado correctamente' });
-      setTimeout(() => router.push('/dashboard/bases'), 1500);
+      setNotification({
+        type: "success",
+        message: "✓ Periodo eliminado correctamente",
+      });
+      setTimeout(() => router.push("/dashboard/bases"), 1500);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al eliminar.';
-      setNotification({ type: 'error', message });
+      const message =
+        error instanceof Error ? error.message : "Error al eliminar.";
+      setNotification({ type: "error", message });
     } finally {
       setIsDeleting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm">
@@ -234,12 +302,14 @@ export default function CorteMonthPage({ params }: PageProps) {
           <span className="text-gray-400 dark:text-gray-600">/</span>
           <span className="text-gray-600 dark:text-gray-400">Corte FONASA</span>
           <span className="text-gray-400 dark:text-gray-600">/</span>
-          <span className="font-semibold text-gray-900 dark:text-white">{monthLabel}</span>
+          <span className="font-semibold text-gray-900 dark:text-white">
+            {monthLabel}
+          </span>
         </nav>
 
         {/* Header Card */}
         <div className="rounded-2xl bg-white dark:bg-gray-900 shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 p-6 text-white">
+          <div className="bg-linear-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 p-6 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -248,7 +318,8 @@ export default function CorteMonthPage({ params }: PageProps) {
                 <div>
                   <h1 className="text-3xl font-bold mb-1">{monthLabel}</h1>
                   <p className="text-blue-100 text-sm">
-                    Corte FONASA • {total.toLocaleString('es-CL')} registros totales
+                    Corte FONASA • {total.toLocaleString("es-CL")} registros
+                    totales
                   </p>
                 </div>
               </div>
@@ -266,7 +337,7 @@ export default function CorteMonthPage({ params }: PageProps) {
                   className="px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 disabled:bg-red-400 disabled:cursor-not-allowed text-white font-semibold text-sm transition-all flex items-center gap-2 shadow-lg"
                 >
                   <Trash2 className="h-4 w-4" />
-                  {isDeleting ? 'Eliminando...' : 'Eliminar periodo'}
+                  {isDeleting ? "Eliminando..." : "Eliminar periodo"}
                 </button>
                 <Link
                   href="/dashboard/bases"
@@ -279,11 +350,23 @@ export default function CorteMonthPage({ params }: PageProps) {
           </div>
 
           {notification && (
-            <div className={`m-6 rounded-xl border p-4 text-sm flex items-center gap-3 ${NOTIFICATION_STYLES[notification.type]}`}>
-              {notification.type === 'success' && <CheckCircle2 className="h-5 w-5 shrink-0" />}
-              {notification.type === 'error' && <AlertCircle className="h-5 w-5 shrink-0" />}
-              {notification.type === 'warning' && <AlertCircle className="h-5 w-5 shrink-0" />}
-              {notification.type === 'info' && <AlertCircle className="h-5 w-5 shrink-0" />}
+            <div
+              className={`m-6 rounded-xl border p-4 text-sm flex items-center gap-3 ${
+                NOTIFICATION_STYLES[notification.type]
+              }`}
+            >
+              {notification.type === "success" && (
+                <CheckCircle2 className="h-5 w-5 shrink-0" />
+              )}
+              {notification.type === "error" && (
+                <AlertCircle className="h-5 w-5 shrink-0" />
+              )}
+              {notification.type === "warning" && (
+                <AlertCircle className="h-5 w-5 shrink-0" />
+              )}
+              {notification.type === "info" && (
+                <AlertCircle className="h-5 w-5 shrink-0" />
+              )}
               <span className="flex-1 font-medium">{notification.message}</span>
               <button
                 onClick={() => setNotification(null)}
@@ -305,7 +388,7 @@ export default function CorteMonthPage({ params }: PageProps) {
               </p>
             </div>
             <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              {total.toLocaleString('es-CL')}
+              {total.toLocaleString("es-CL")}
             </p>
           </div>
 
@@ -317,7 +400,7 @@ export default function CorteMonthPage({ params }: PageProps) {
               </p>
             </div>
             <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-              {validated.toLocaleString('es-CL')}
+              {validated.toLocaleString("es-CL")}
             </p>
           </div>
 
@@ -329,7 +412,7 @@ export default function CorteMonthPage({ params }: PageProps) {
               </p>
             </div>
             <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-              {nonValidated.toLocaleString('es-CL')}
+              {nonValidated.toLocaleString("es-CL")}
             </p>
           </div>
 
@@ -350,7 +433,9 @@ export default function CorteMonthPage({ params }: PageProps) {
         <div className="flex items-center justify-between gap-4 px-6 py-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Mostrar</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                Mostrar
+              </span>
               <select
                 value={pageSize}
                 onChange={(e) => {
@@ -365,7 +450,9 @@ export default function CorteMonthPage({ params }: PageProps) {
                   </option>
                 ))}
               </select>
-              <span className="text-sm text-gray-600 dark:text-gray-400">registros</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                registros
+              </span>
             </div>
 
             <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
@@ -395,7 +482,9 @@ export default function CorteMonthPage({ params }: PageProps) {
                 <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 dark:border-blue-900 border-t-blue-600 dark:border-t-blue-400" />
                 <Database className="absolute inset-0 m-auto h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Cargando registros...</p>
+              <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                Cargando registros...
+              </p>
             </div>
           ) : (
             <>
@@ -408,7 +497,7 @@ export default function CorteMonthPage({ params }: PageProps) {
                           key={col}
                           className="px-4 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wider"
                         >
-                          {col}
+                          {CORTE_COLUMN_LABELS[col] ?? col}
                         </th>
                       ))}
                       <th className="px-4 py-4 text-right font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wider w-24">
@@ -424,7 +513,9 @@ export default function CorteMonthPage({ params }: PageProps) {
                           className="px-4 py-12 text-center text-gray-500 dark:text-gray-400"
                         >
                           <Database className="h-12 w-12 mx-auto mb-3 text-gray-300 dark:text-gray-700" />
-                          <p className="font-medium">No hay registros disponibles</p>
+                          <p className="font-medium">
+                            No hay registros disponibles
+                          </p>
                         </td>
                       </tr>
                     ) : (
@@ -433,8 +524,8 @@ export default function CorteMonthPage({ params }: PageProps) {
                           key={row.id}
                           className={`transition-colors ${
                             editingRecord?.id === row.id
-                              ? 'bg-blue-50 dark:bg-blue-900/20'
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                              ? "bg-blue-50 dark:bg-blue-900/20"
+                              : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
                           }`}
                         >
                           {visibleColumns.map((col) => (
@@ -442,7 +533,9 @@ export default function CorteMonthPage({ params }: PageProps) {
                               key={`${row.id}-${col}`}
                               className="px-4 py-3 text-gray-700 dark:text-gray-300 text-xs"
                             >
-                              <span className="truncate block max-w-xs">{row[col] ?? '—'}</span>
+                              <span className="truncate block max-w-xs">
+                                {String(row[col] ?? "—")}
+                              </span>
                             </td>
                           ))}
                           <td className="px-4 py-3 text-right">
@@ -465,8 +558,15 @@ export default function CorteMonthPage({ params }: PageProps) {
               <div className="flex items-center justify-between px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
                   {rows.length > 0
-                    ? `Mostrando ${((page - 1) * pageSize + 1).toLocaleString('es-CL')} - ${((page - 1) * pageSize + rows.length).toLocaleString('es-CL')} de ${total.toLocaleString('es-CL')} registros`
-                    : 'Sin registros'}
+                    ? `Mostrando ${((page - 1) * pageSize + 1).toLocaleString(
+                        "es-CL"
+                      )} - ${(
+                        (page - 1) * pageSize +
+                        rows.length
+                      ).toLocaleString("es-CL")} de ${total.toLocaleString(
+                        "es-CL"
+                      )} registros`
+                    : "Sin registros"}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -494,7 +594,7 @@ export default function CorteMonthPage({ params }: PageProps) {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-sm p-4">
             <div className="w-full max-w-4xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 p-6 text-white">
+              <div className="bg-linear-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-white/20 backdrop-blur-sm">
@@ -502,7 +602,9 @@ export default function CorteMonthPage({ params }: PageProps) {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">Editar Registro</h2>
-                      <p className="text-sm text-blue-100">ID: #{editingRecord.id}</p>
+                      <p className="text-sm text-blue-100">
+                        ID: #{editingRecord.id}
+                      </p>
                     </div>
                   </div>
                   <button
@@ -530,9 +632,12 @@ export default function CorteMonthPage({ params }: PageProps) {
                       </label>
                       <input
                         type="text"
-                        value={formValues[key] ?? ''}
+                        value={formValues[key] ?? ""}
                         onChange={(e) =>
-                          setFormValues((prev) => ({ ...prev, [key]: e.target.value }))
+                          setFormValues((prev) => ({
+                            ...prev,
+                            [key]: e.target.value,
+                          }))
                         }
                         className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                       />

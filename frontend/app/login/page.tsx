@@ -2,137 +2,201 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import RutInput from '@/components/RutInput';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { AlertCircle, LogIn, UserPlus, ShieldCheck } from 'lucide-react';
+import { handleRutInput, formatRut } from '@/lib/utils';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { login, loginAsDevAdmin } = useAuth();
   const [rut, setRut] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!rut) {
-      setError('Ingrese su RUT');
-      return;
-    }
-
-    if (!password) {
-      setError('Ingrese su clave');
-      return;
-    }
-
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      const success = await login(rut, password);
+      const result = await login(rut, password);
       
-      if (success) {
+      if (result.success) {
         router.push('/dashboard');
       } else {
-        setError('RUT o clave incorrectos');
+        setError(result.message || 'Error al iniciar sesión');
       }
     } catch {
-      setError('Error al iniciar sesión');
+      setError('Error al conectar con el servidor');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+  <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 px-4">
       <div className="w-full max-w-md">
-        <div className="bg-white shadow-2xl rounded-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
-            <h1 className="text-3xl font-bold text-white text-center">
-              Sistema de Gestión
-            </h1>
-            <p className="text-blue-100 text-center mt-2">
-              Inicie sesión con su cuenta
-            </p>
+        {/* Logo/Title */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-purple-600 mb-4 shadow-lg">
+            <LogIn className="h-8 w-8 text-white" />
           </div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Bienvenido
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Sistema de Gestión Percapita
+          </p>
+        </div>
 
-          {/* Form */}
-          <div className="px-8 py-10">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* RUT Input */}
-              <RutInput
-                value={rut}
-                onChange={setRut}
-                label="RUT"
-                placeholder="12345678-9"
-                required
-                showError={false}
-              />
-
-              {/* Password Input */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Clave
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Ingrese su clave"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
-                  required
-                />
-              </div>
-
+        {/* Login Card */}
+        <Card className="shadow-2xl border-0">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
+            <CardDescription>
+              Ingresa tu RUT y contraseña para acceder
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
               {/* Error Message */}
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                  {error}
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                 </div>
               )}
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              {/* RUT Field */}
+              <div className="space-y-2">
+                <Label htmlFor="rut">RUT</Label>
+                <Input
+                  id="rut"
+                  type="text"
+                  placeholder="12345678-9"
+                  value={rut}
+                  onChange={(e) => {
+                    const clean = handleRutInput(e.target.value);
+                    setRut(formatRut(clean));
+                  }}
+                  required
+                  className="h-11"
+                  autoComplete="username"
+                />
+              </div>
+
+              {/* Password Field */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <Link 
+                    href="/recuperar-password" 
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11"
+                  autoComplete="current-password"
+                />
+              </div>
+
+              {/* Login Button */}
+              <Button 
+                type="submit" 
+                className="w-full h-11 bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                disabled={loading}
               >
-                {isLoading ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Ingresando...
-                  </span>
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Iniciando sesión...
+                  </div>
                 ) : (
-                  'Ingresar'
+                  <div className="flex items-center gap-2">
+                    <LogIn className="h-4 w-4" />
+                    Iniciar Sesión
+                  </div>
                 )}
-              </button>
+              </Button>
             </form>
 
-            {/* Helper Text */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-500">
-                ¿Olvidó su clave?{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">
-                  Recuperar
-                </a>
-              </p>
+            {process.env.NODE_ENV !== 'production' && (
+              <div className="mt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-10 border-2"
+                  onClick={() => {
+                    // Acceso rápido de desarrollo: admin
+                    try {
+                      loginAsDevAdmin();
+                      router.push('/dashboard');
+                    } catch {
+                      // noop
+                    }
+                  }}
+                  title="Solo desarrollo: inicia sesión como administrador"
+                >
+                  <ShieldCheck className="h-4 w-4 mr-2" />
+                  Entrar como Admin (DEV)
+                </Button>
+                <p className="mt-2 text-xs text-gray-500">
+                  Botón visible solo en desarrollo. Inicia sesión con una cuenta administradora de prueba.
+                </p>
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white dark:bg-gray-950 px-2 text-gray-500">
+                  ¿No tienes cuenta?
+                </span>
+              </div>
             </div>
 
-            {/* Demo Info */}
-            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-xs text-blue-800 font-semibold mb-1">Demo:</p>
-              <p className="text-xs text-blue-700">
-                Use cualquier RUT válido con clave: <span className="font-mono font-bold">123456</span>
-              </p>
-            </div>
-          </div>
-        </div>
+            {/* Register Link */}
+            <Link href="/register">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full h-11 border-2 hover:bg-gray-50 dark:hover:bg-gray-900"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Crear Nueva Cuenta
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Footer */}
+        <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-8">
+          Al iniciar sesión, aceptas nuestros{' '}
+          <Link href="/terminos" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">
+            Términos de Servicio
+          </Link>
+          {' '}y{' '}
+          <Link href="/privacidad" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">
+            Política de Privacidad
+          </Link>
+        </p>
       </div>
     </div>
   );

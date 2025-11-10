@@ -1,829 +1,1056 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { 
-  Users, 
-  MapPin, 
-  Building2, 
-  Settings, 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Search, 
-  X,
-  Check,
-  AlertCircle,
-  CheckCircle2,
-  ChevronRight,
+import { useState, useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Settings,
   Save,
-  Palette,
-  Code,
-  Globe,
-  Flag,
+  X,
+  Users,
   Database,
-  BarChart3
-} from 'lucide-react';
+  BookOpen,
+  Power,
+  PowerOff,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  getAllCatalogos,
+  createEtnia,
+  updateEtnia,
+  createNacionalidad,
+  updateNacionalidad,
+  createSector,
+  updateSector,
+  createSubsector,
+  updateSubsector,
+  createEstablecimiento,
+  updateEstablecimiento,
+  createCentroSalud,
+  updateCentroSalud,
+  type Etnia,
+  type Nacionalidad,
+  type Sector,
+  type Subsector,
+  type Establecimiento,
+  type CentroSalud,
+} from "@/lib/catalogos";
 
-type Catalogo = {
-  id?: number;
-  tipo: TipoCatalogo;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+type CatalogoType =
+  | "etnia"
+  | "nacionalidad"
+  | "sector"
+  | "subsector"
+  | "establecimiento"
+  | "centro";
+type CatalogoItem =
+  | Etnia
+  | Nacionalidad
+  | Sector
+  | Subsector
+  | Establecimiento
+  | CentroSalud;
+
+interface FormData {
   nombre: string;
-  codigo: string | null;
-  color: string | null;
-  activo: boolean;
+  codigo: string;
+  codigoPais?: string;
+  color?: string;
   orden: number;
+  activo: boolean;
+  sectorId?: number;
+  establecimientoId?: number;
+}
+
+// Componente de formulario genérico (fuera para evitar re-creación)
+const FormularioCatalogo = ({
+  tipo,
+  formData,
+  setFormData,
+  editingItem,
+  resetForm,
+  handleSubmit,
+  sectores,
+  establecimientos,
+}: {
+  tipo: CatalogoType;
+  formData: FormData;
+  setFormData: (data: FormData) => void;
+  editingItem: CatalogoItem | null;
+  resetForm: () => void;
+  handleSubmit: (tipo: CatalogoType) => void;
+  sectores: Sector[];
+  establecimientos: Establecimiento[];
+}) => (
+  <Card className="p-6 mb-6 bg-card border">
+    <div className="flex justify-between items-center mb-4">
+      <h3 className="text-lg font-semibold">
+        {editingItem ? "Editar" : "Nuevo"}{" "}
+        {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+      </h3>
+      <Button variant="ghost" size="sm" onClick={resetForm}>
+        <X className="w-4 h-4" />
+      </Button>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label htmlFor="nombre">Nombre *</Label>
+        <Input
+          id="nombre"
+          value={formData.nombre}
+          onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+          placeholder="Nombre del registro"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="codigo">Código *</Label>
+        <Input
+          id="codigo"
+          value={formData.codigo}
+          onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
+          placeholder="Código único"
+        />
+      </div>
+
+      {tipo === "nacionalidad" && (
+        <div className="space-y-2">
+          <Label htmlFor="codigoPais">Código País</Label>
+          <Input
+            id="codigoPais"
+            value={formData.codigoPais || ""}
+            onChange={(e) =>
+              setFormData({ ...formData, codigoPais: e.target.value })
+            }
+            placeholder="Ej: CL, AR, PE"
+          />
+        </div>
+      )}
+
+      {(tipo === "sector" || tipo === "subsector") && (
+        <div className="space-y-2">
+          <Label htmlFor="color">Color (Hex)</Label>
+          <div className="flex gap-2">
+            <Input
+              id="color"
+              type="color"
+              value={formData.color || "#000000"}
+              onChange={(e) =>
+                setFormData({ ...formData, color: e.target.value })
+              }
+              className="w-20"
+            />
+            <Input
+              value={formData.color || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, color: e.target.value })
+              }
+              placeholder="#000000"
+            />
+          </div>
+        </div>
+      )}
+
+      {tipo === "subsector" && (
+        <div className="space-y-2">
+          <Label htmlFor="sectorId">Sector</Label>
+          <Select
+            value={formData.sectorId?.toString() || ""}
+            onValueChange={(value) =>
+              setFormData({ ...formData, sectorId: parseInt(value) })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un sector" />
+            </SelectTrigger>
+            <SelectContent>
+              {sectores.map((sector) => (
+                <SelectItem key={sector.id} value={sector.id.toString()}>
+                  {sector.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {tipo === "centro" && (
+        <div className="space-y-2">
+          <Label htmlFor="establecimientoId">Establecimiento</Label>
+          <Select
+            value={formData.establecimientoId?.toString() || ""}
+            onValueChange={(value) =>
+              setFormData({ ...formData, establecimientoId: parseInt(value) })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un establecimiento" />
+            </SelectTrigger>
+            <SelectContent>
+              {establecimientos.map((est) => (
+                <SelectItem key={est.id} value={est.id.toString()}>
+                  {est.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="orden">Orden</Label>
+        <Input
+          id="orden"
+          type="number"
+          value={formData.orden}
+          onChange={(e) =>
+            setFormData({ ...formData, orden: parseInt(e.target.value) || 0 })
+          }
+          placeholder="0"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="activo">Estado</Label>
+        <Select
+          value={formData.activo ? "true" : "false"}
+          onValueChange={(value) =>
+            setFormData({ ...formData, activo: value === "true" })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="true">Activo</SelectItem>
+            <SelectItem value="false">Inactivo</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    <div className="flex gap-2 mt-6">
+      <Button onClick={() => handleSubmit(tipo)} className="flex-1">
+        <Save className="w-4 h-4 mr-2" />
+        {editingItem ? "Actualizar" : "Crear"}
+      </Button>
+      <Button variant="outline" onClick={resetForm}>
+        Cancelar
+      </Button>
+    </div>
+  </Card>
+);
+
+// Componente de tabla genérica (fuera para evitar re-creación)
+const TablaCatalogo = ({
+  items,
+  tipo,
+  showInactivos,
+  setShowInactivos,
+  handleEdit,
+  handleToggleActivo,
+  handleDeletePermanent,
+  showColor = false,
+  showCodigoPais = false,
+  showSector = false,
+  showEstablecimiento = false,
+}: {
+  items: CatalogoItem[];
+  tipo: CatalogoType;
+  showInactivos: boolean;
+  setShowInactivos: (value: boolean) => void;
+  handleEdit: (item: CatalogoItem, tipo: CatalogoType) => void;
+  handleToggleActivo: (item: CatalogoItem, tipo: CatalogoType) => void;
+  handleDeletePermanent: (item: CatalogoItem, tipo: CatalogoType) => void;
+  showColor?: boolean;
+  showCodigoPais?: boolean;
+  showSector?: boolean;
+  showEstablecimiento?: boolean;
+}) => {
+  // Filtrar items según showInactivos
+  const itemsFiltrados = showInactivos
+    ? items
+    : items.filter((item) => item.activo);
+
+  return (
+    <div className="space-y-4">
+      {/* Filtro de activos/inactivos */}
+      <div className="flex items-center gap-3">
+        <Switch
+          id="show-inactivos"
+          checked={showInactivos}
+          onCheckedChange={setShowInactivos}
+        />
+        <Label
+          htmlFor="show-inactivos"
+          className="text-sm font-normal cursor-pointer"
+        >
+          Mostrar registros inactivos
+        </Label>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-3 px-4 font-medium">Nombre</th>
+              <th className="text-left py-3 px-4 font-medium">Código</th>
+              {showCodigoPais && (
+                <th className="text-left py-3 px-4 font-medium">Código País</th>
+              )}
+              {showColor && (
+                <th className="text-left py-3 px-4 font-medium">Color</th>
+              )}
+              {showSector && (
+                <th className="text-left py-3 px-4 font-medium">Sector</th>
+              )}
+              {showEstablecimiento && (
+                <th className="text-left py-3 px-4 font-medium">
+                  Establecimiento
+                </th>
+              )}
+              <th className="text-left py-3 px-4 font-medium">Orden</th>
+              <th className="text-left py-3 px-4 font-medium">Estado</th>
+              <th className="text-right py-3 px-4 font-medium">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {itemsFiltrados.map((item) => (
+              <tr
+                key={item.id}
+                className={`border-b border-border hover:bg-muted/50 transition-colors ${
+                  !item.activo ? "opacity-50 bg-muted/20" : ""
+                }`}
+              >
+                <td className="py-3 px-4">
+                  <span
+                    className={
+                      !item.activo ? "line-through text-muted-foreground" : ""
+                    }
+                  >
+                    {item.nombre}
+                  </span>
+                </td>
+                <td className="py-3 px-4">
+                  <code className="text-xs bg-muted px-2 py-1 rounded">
+                    {item.codigo || "-"}
+                  </code>
+                </td>
+                {showCodigoPais && (
+                  <td className="py-3 px-4">
+                    <code className="text-xs bg-muted px-2 py-1 rounded">
+                      {"codigoPais" in item ? item.codigoPais : "-"}
+                    </code>
+                  </td>
+                )}
+                {showColor && (
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded border border-border"
+                        style={{
+                          backgroundColor:
+                            "color" in item ? item.color || "#ccc" : "#ccc",
+                        }}
+                      />
+                      <code className="text-xs">
+                        {"color" in item ? item.color : "-"}
+                      </code>
+                    </div>
+                  </td>
+                )}
+                {showSector && (
+                  <td className="py-3 px-4">
+                    {"sectorNombre" in item ? item.sectorNombre : "-"}
+                  </td>
+                )}
+                {showEstablecimiento && (
+                  <td className="py-3 px-4">
+                    {"establecimientoNombre" in item
+                      ? item.establecimientoNombre
+                      : "-"}
+                  </td>
+                )}
+                <td className="py-3 px-4">{item.orden}</td>
+                <td className="py-3 px-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleToggleActivo(item, tipo)}
+                    className="gap-2"
+                  >
+                    {item.activo ? (
+                      <>
+                        <Power className="w-4 h-4 text-green-500" />
+                        <span className="text-green-600">Activo</span>
+                      </>
+                    ) : (
+                      <>
+                        <PowerOff className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-500">Inactivo</span>
+                      </>
+                    )}
+                  </Button>
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEdit(item, tipo)}
+                      title="Editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const accion = item.activo ? "desactivar" : "reactivar";
+                        if (
+                          confirm(`¿Estás seguro de ${accion} este registro?`)
+                        ) {
+                          handleToggleActivo(item, tipo);
+                        }
+                      }}
+                      title={item.activo ? "Desactivar" : "Reactivar"}
+                      className={
+                        item.activo
+                          ? "hover:text-orange-600"
+                          : "hover:text-green-600"
+                      }
+                    >
+                      {item.activo ? (
+                        <PowerOff className="w-4 h-4" />
+                      ) : (
+                        <Power className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeletePermanent(item, tipo)}
+                      title="Eliminar permanentemente"
+                      className="hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 };
-
-type TipoCatalogo = 'ETNIA' | 'NACIONALIDAD' | 'SECTOR' | 'SUBSECTOR' | 'ESTABLECIMIENTO';
-
-type SeccionConfig = {
-  id: string;
-  titulo: string;
-  descripcion: string;
-  icono: React.ReactNode;
-  color: string;
-};
-
-type CategoriaConfig = {
-  id: TipoCatalogo;
-  titulo: string;
-  descripcion: string;
-  icono: React.ReactNode;
-  usaCodigo: boolean;
-  usaColor: boolean;
-  placeholder: string;
-  colorDefault: string;
-};
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-type ModalMode = 'create' | 'edit' | null;
 
 export default function ConfiguracionPage() {
-  const [catalogos, setCatalogos] = useState<Record<TipoCatalogo, Catalogo[]>>({
-    ETNIA: [],
-    NACIONALIDAD: [],
-    SECTOR: [],
-    SUBSECTOR: [],
-    ESTABLECIMIENTO: []
-  });
-  
+  const [mainTab, setMainTab] = useState<"nuevos" | "base-datos" | "usuarios">(
+    "nuevos"
+  );
+  const [etnias, setEtnias] = useState<Etnia[]>([]);
+  const [nacionalidades, setNacionalidades] = useState<Nacionalidad[]>([]);
+  const [sectores, setSectores] = useState<Sector[]>([]);
+  const [subsectores, setSubsectores] = useState<Subsector[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>(
+    []
+  );
+  const [centros, setCentros] = useState<CentroSalud[]>([]);
   const [loading, setLoading] = useState(true);
-  const [seccionExpandida, setSeccionExpandida] = useState<string | null>('USUARIOS');
-  const [searchTerms, setSearchTerms] = useState<Record<TipoCatalogo, string>>({
-    ETNIA: '',
-    NACIONALIDAD: '',
-    SECTOR: '',
-    SUBSECTOR: '',
-    ESTABLECIMIENTO: ''
+  const [editingItem, setEditingItem] = useState<CatalogoItem | null>(null);
+  const [showForm, setShowForm] = useState<CatalogoType | null>(null);
+  const [showInactivos, setShowInactivos] = useState(true); // Mostrar inactivos por defecto
+  const [formData, setFormData] = useState<FormData>({
+    nombre: "",
+    codigo: "",
+    orden: 0,
+    activo: true,
   });
-  const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [mensaje, setMensaje] = useState<string | null>(null);
-  
-  // Modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<ModalMode>(null);
-  const [modalCategoria, setModalCategoria] = useState<TipoCatalogo | null>(null);
-  const [modalData, setModalData] = useState<{
-    id?: number;
-    nombre: string;
-    codigo: string;
-    color: string;
-  }>({ nombre: '', codigo: '', color: '#3B82F6' });
-
-  const secciones: SeccionConfig[] = [
-    { 
-      id: 'USUARIOS', 
-      titulo: 'Gestión de Usuarios', 
-      icono: <Users className="h-6 w-6" />, 
-      color: 'blue',
-      descripcion: 'Configuración de datos demográficos y ubicación' 
-    },
-    { 
-      id: 'ESTABLECIMIENTOS', 
-      titulo: 'Infraestructura', 
-      icono: <Building2 className="h-6 w-6" />, 
-      color: 'green',
-      descripcion: 'Gestión de centros de salud y establecimientos' 
-    },
-    { 
-      id: 'SISTEMA', 
-      titulo: 'Configuración del Sistema', 
-      icono: <Settings className="h-6 w-6" />, 
-      color: 'purple',
-      descripcion: 'Parámetros generales y configuraciones avanzadas' 
-    }
-  ];
-
-  const categorias: Record<string, CategoriaConfig[]> = {
-    USUARIOS: [
-      { 
-        id: 'ETNIA', 
-        titulo: 'Etnias', 
-        descripcion: 'Pueblos originarios y etnias reconocidas', 
-        icono: <Flag className="h-5 w-5" />,
-        usaCodigo: false, 
-        usaColor: false,
-        placeholder: 'Ej: Mapuche, Aymara',
-        colorDefault: '#3B82F6'
-      },
-      { 
-        id: 'NACIONALIDAD', 
-        titulo: 'Nacionalidades', 
-        descripcion: 'Países de origen de los pacientes', 
-        icono: <Globe className="h-5 w-5" />,
-        usaCodigo: false, 
-        usaColor: false,
-        placeholder: 'Ej: Chilena, Argentina',
-        colorDefault: '#3B82F6'
-      }
-    ],
-    ESTABLECIMIENTOS: [
-      { 
-        id: 'SECTOR', 
-        titulo: 'Sectores', 
-        descripcion: 'Sectores territoriales con código de color', 
-        icono: <MapPin className="h-5 w-5" />,
-        usaCodigo: false, 
-        usaColor: true,
-        placeholder: 'Ej: Verde, Azul, Rojo',
-        colorDefault: '#10B981'
-      },
-      { 
-        id: 'SUBSECTOR', 
-        titulo: 'Subsectores', 
-        descripcion: 'Divisiones territoriales con código identificador', 
-        icono: <Code className="h-5 w-5" />,
-        usaCodigo: true, 
-        usaColor: false,
-        placeholder: 'Ej: Frutillar Alto',
-        colorDefault: '#3B82F6'
-      },
-      { 
-        id: 'ESTABLECIMIENTO', 
-        titulo: 'Establecimientos', 
-        descripcion: 'Centros de salud y establecimientos médicos', 
-        icono: <Building2 className="h-5 w-5" />,
-        usaCodigo: false, 
-        usaColor: false,
-        placeholder: 'Ej: CESFAM, Hospital',
-        colorDefault: '#3B82F6'
-      }
-    ]
-  };
 
   useEffect(() => {
-    cargarCatalogos();
+    loadCatalogos();
   }, []);
 
-  useEffect(() => {
-    if (mensaje || error) {
-      const timer = setTimeout(() => {
-        setMensaje(null);
-        setError(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [mensaje, error]);
-
-  const mostrarMensaje = (msg: string, esError = false) => {
-    if (esError) {
-      setError(msg);
-    } else {
-      setMensaje(msg);
-    }
-  };
-
-  const cargarCatalogos = async () => {
-    setLoading(true);
-    setError(null);
+  const loadCatalogos = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/catalogos/`);
-      if (response.ok) {
-        const data: Catalogo[] = await response.json();
-        
-        const agrupados: Record<TipoCatalogo, Catalogo[]> = {
-          ETNIA: [],
-          NACIONALIDAD: [],
-          SECTOR: [],
-          SUBSECTOR: [],
-          ESTABLECIMIENTO: []
-        };
-        
-        data.forEach(catalogo => {
-          if (catalogo.tipo in agrupados) {
-            agrupados[catalogo.tipo as TipoCatalogo].push(catalogo);
-          }
-        });
-        
-        Object.keys(agrupados).forEach(key => {
-          agrupados[key as TipoCatalogo].sort((a, b) => a.orden - b.orden);
-        });
-        
-        setCatalogos(agrupados);
-      } else {
-        mostrarMensaje('Error al cargar los catálogos', true);
-      }
+      const data = await getAllCatalogos();
+      setEtnias(data.etnias);
+      setNacionalidades(data.nacionalidades);
+      setSectores(data.sectores);
+      setSubsectores(data.subsectores);
+      setEstablecimientos(data.establecimientos);
+      setCentros(data.centros_salud);
     } catch (error) {
-      console.error('Error al cargar catálogos:', error);
-      mostrarMensaje('Error de conexión con el servidor', true);
+      console.error("Error al cargar catálogos:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const openModal = (mode: ModalMode, categoria: TipoCatalogo, item?: Catalogo) => {
-    const categoriaConfig = Object.values(categorias)
-      .flat()
-      .find(c => c.id === categoria);
+  const resetForm = () => {
+    setFormData({
+      nombre: "",
+      codigo: "",
+      orden: 0,
+      activo: true,
+    });
+    setEditingItem(null);
+    setShowForm(null);
+  };
 
-    setModalMode(mode);
-    setModalCategoria(categoria);
-    
-    if (mode === 'edit' && item) {
-      setModalData({
-        id: item.id,
-        nombre: item.nombre,
-        codigo: item.codigo || '',
-        color: item.color || categoriaConfig?.colorDefault || '#3B82F6'
+  const handleEdit = (item: CatalogoItem, tipo: CatalogoType) => {
+    setEditingItem(item);
+    setFormData({
+      nombre: item.nombre,
+      codigo: item.codigo || "",
+      codigoPais: "codigoPais" in item ? item.codigoPais : undefined,
+      color: "color" in item ? item.color : undefined,
+      orden: item.orden,
+      activo: item.activo,
+      sectorId: "sectorId" in item ? item.sectorId : undefined,
+      establecimientoId:
+        "establecimientoId" in item ? item.establecimientoId : undefined,
+    });
+    setShowForm(tipo);
+  };
+
+  const handleSubmit = async (tipo: CatalogoType) => {
+    try {
+      const payload: Record<string, string | number | boolean | undefined> = {
+        nombre: formData.nombre,
+        codigo: formData.codigo,
+        orden: formData.orden,
+        activo: formData.activo,
+      };
+
+      if (formData.codigoPais) payload.codigoPais = formData.codigoPais;
+      if (formData.color) payload.color = formData.color;
+      if (formData.sectorId) payload.sectorId = formData.sectorId;
+      if (formData.establecimientoId)
+        payload.establecimientoId = formData.establecimientoId;
+
+      if (editingItem) {
+        // Actualizar
+        switch (tipo) {
+          case "etnia":
+            await updateEtnia(editingItem.id, payload);
+            break;
+          case "nacionalidad":
+            await updateNacionalidad(editingItem.id, payload);
+            break;
+          case "sector":
+            await updateSector(editingItem.id, payload);
+            break;
+          case "subsector":
+            await updateSubsector(editingItem.id, payload);
+            break;
+          case "establecimiento":
+            await updateEstablecimiento(editingItem.id, payload);
+            break;
+          case "centro":
+            await updateCentroSalud(editingItem.id, payload);
+            break;
+        }
+      } else {
+        // Crear
+        switch (tipo) {
+          case "etnia":
+            await createEtnia(payload);
+            break;
+          case "nacionalidad":
+            await createNacionalidad(payload);
+            break;
+          case "sector":
+            await createSector(payload);
+            break;
+          case "subsector":
+            await createSubsector(payload);
+            break;
+          case "establecimiento":
+            await createEstablecimiento(payload);
+            break;
+          case "centro":
+            await createCentroSalud(payload);
+            break;
+        }
+      }
+
+      await loadCatalogos();
+
+      // Limpiar formulario pero mantenerlo abierto
+      setFormData({
+        nombre: "",
+        codigo: "",
+        orden: 0,
+        activo: true,
       });
-    } else {
-      setModalData({
-        nombre: '',
-        codigo: '',
-        color: categoriaConfig?.colorDefault || '#3B82F6'
-      });
+      setEditingItem(null);
+      // NO llamar a setShowForm(null) para mantener el formulario abierto
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      alert("Error al guardar el registro");
     }
-    
-    setModalOpen(true);
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setModalMode(null);
-    setModalCategoria(null);
-    setModalData({ nombre: '', codigo: '', color: '#3B82F6' });
+  const handleToggleActivo = async (item: CatalogoItem, tipo: CatalogoType) => {
+    try {
+      const payload = { ...item, activo: !item.activo };
+      switch (tipo) {
+        case "etnia":
+          await updateEtnia(item.id, payload);
+          break;
+        case "nacionalidad":
+          await updateNacionalidad(item.id, payload);
+          break;
+        case "sector":
+          await updateSector(item.id, payload);
+          break;
+        case "subsector":
+          await updateSubsector(item.id, payload);
+          break;
+        case "establecimiento":
+          await updateEstablecimiento(item.id, payload);
+          break;
+        case "centro":
+          await updateCentroSalud(item.id, payload);
+          break;
+      }
+      await loadCatalogos();
+    } catch (error) {
+      console.error("Error al cambiar estado:", error);
+      alert("Error al cambiar el estado");
+    }
   };
 
-  const handleSubmitModal = async () => {
-    if (!modalCategoria) return;
-    
-    if (!modalData.nombre.trim()) {
-      mostrarMensaje('El nombre es obligatorio', true);
+  const handleDeletePermanent = async (
+    item: CatalogoItem,
+    tipo: CatalogoType
+  ) => {
+    if (
+      !confirm(
+        `¿Estás SEGURO de eliminar PERMANENTEMENTE "${item.nombre}"? Esta acción NO se puede deshacer.`
+      )
+    ) {
       return;
     }
 
-    const categoriaConfig = Object.values(categorias)
-      .flat()
-      .find(c => c.id === modalCategoria);
-
-    setGuardando(true);
-    
     try {
-      const payload = {
-        tipo: modalCategoria,
-        nombre: modalData.nombre.trim(),
-        codigo: categoriaConfig?.usaCodigo && modalData.codigo ? modalData.codigo.trim() : null,
-        color: categoriaConfig?.usaColor ? modalData.color : null,
-        activo: true,
-        orden: modalMode === 'create' ? catalogos[modalCategoria].length : undefined
-      };
+      const endpoint = getEndpointForType(tipo);
+      const response = await fetch(
+        `${API_URL}/api/catalogos/${endpoint}/${item.id}/?permanent=true`,
+        {
+          method: "DELETE",
+        }
+      );
 
-      const url = modalMode === 'edit' && modalData.id 
-        ? `${API_URL}/api/catalogos/${modalData.id}/`
-        : `${API_URL}/api/catalogos/`;
-      
-      const method = modalMode === 'edit' ? 'PATCH' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        await cargarCatalogos();
-        closeModal();
-        mostrarMensaje(
-          modalMode === 'edit' 
-            ? '✓ Elemento actualizado correctamente' 
-            : '✓ Elemento agregado exitosamente'
-        );
-      } else {
-        const errorData = await response.json();
-        mostrarMensaje(errorData.detail || 'Error al guardar el elemento', true);
+      if (!response.ok) {
+        throw new Error("Error al eliminar");
       }
+
+      await loadCatalogos();
+      alert(`"${item.nombre}" eliminado permanentemente`);
     } catch (error) {
-      console.error('Error al guardar:', error);
-      mostrarMensaje('Error de conexión', true);
-    } finally {
-      setGuardando(false);
+      console.error("Error al eliminar:", error);
+      alert("Error al eliminar el registro");
     }
   };
 
-  const eliminarItem = async (id: number, nombre: string) => {
-    const confirmed = window.confirm(
-      `⚠️ ¿Estás seguro de eliminar "${nombre}"?\n\nEsta acción no se puede deshacer.`
-    );
-    
-    if (!confirmed) return;
-
-    setGuardando(true);
-    try {
-      const response = await fetch(`${API_URL}/api/catalogos/${id}/`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        await cargarCatalogos();
-        mostrarMensaje('✓ Elemento eliminado correctamente');
-      } else {
-        mostrarMensaje('Error al eliminar el elemento', true);
-      }
-    } catch (error) {
-      console.error('Error al eliminar:', error);
-      mostrarMensaje('Error de conexión', true);
-    } finally {
-      setGuardando(false);
-    }
+  const getEndpointForType = (tipo: CatalogoType): string => {
+    const endpoints: Record<CatalogoType, string> = {
+      etnia: "etnias",
+      nacionalidad: "nacionalidades",
+      sector: "sectores",
+      subsector: "subsectores",
+      establecimiento: "establecimientos",
+      centro: "centros-salud",
+    };
+    return endpoints[tipo];
   };
 
-  const toggleActivo = async (item: Catalogo) => {
-    setGuardando(true);
-    try {
-      const response = await fetch(`${API_URL}/api/catalogos/${item.id}/`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activo: !item.activo }),
-      });
-
-      if (response.ok) {
-        await cargarCatalogos();
-        mostrarMensaje(`✓ Elemento ${!item.activo ? 'activado' : 'desactivado'}`);
-      } else {
-        mostrarMensaje('Error al actualizar el estado', true);
-      }
-    } catch (error) {
-      console.error('Error al actualizar:', error);
-      mostrarMensaje('Error de conexión', true);
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const filtrarItems = (items: Catalogo[], tipo: TipoCatalogo) => {
-    const busqueda = searchTerms[tipo].toLowerCase();
-    if (!busqueda) return items;
-    return items.filter(item => 
-      item.nombre.toLowerCase().includes(busqueda) ||
-      (item.codigo && item.codigo.toLowerCase().includes(busqueda))
-    );
-  };
-
-  const obtenerEstadisticas = () => {
-    let total = 0;
-    let activos = 0;
-    Object.values(catalogos).forEach(lista => {
-      total += lista.length;
-      activos += lista.filter(c => c.activo).length;
-    });
-    return { total, activos, inactivos: total - activos };
-  };
-
-  const stats = obtenerEstadisticas();
-
-  const colorClasses: Record<string, { bg: string; text: string; border: string }> = {
-    blue: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-800' },
-    green: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600 dark:text-green-400', border: 'border-green-200 dark:border-green-800' },
-    purple: { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-200 dark:border-purple-800' }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        {/* Header Premium */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-8 text-white shadow-2xl">
-          <div className="absolute inset-0 bg-grid-white/10"></div>
-          <div className="relative">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="rounded-xl bg-white/20 p-4 backdrop-blur-sm ring-1 ring-white/30">
-                  <Settings className="h-8 w-8" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold mb-2">Configuración del Sistema</h1>
-                  <p className="text-blue-100">
-                    Gestiona los catálogos y parámetros de la aplicación
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-xl bg-white/10 p-6 backdrop-blur-sm ring-1 ring-white/20">
-                <div className="grid grid-cols-3 gap-6 text-center">
-                  <div>
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      <Database className="h-4 w-4" />
-                    </div>
-                    <div className="text-3xl font-bold">{stats.total}</div>
-                    <div className="text-xs text-blue-100 mt-1">Total Items</div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      <CheckCircle2 className="h-4 w-4" />
-                    </div>
-                    <div className="text-3xl font-bold text-green-300">{stats.activos}</div>
-                    <div className="text-xs text-blue-100 mt-1">Activos</div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      <AlertCircle className="h-4 w-4" />
-                    </div>
-                    <div className="text-3xl font-bold text-amber-300">{stats.inactivos}</div>
-                    <div className="text-xs text-blue-100 mt-1">Inactivos</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+  if (loading) {
+    return (
+      <div className="container mx-auto px-6 py-6">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Cargando configuración...</p>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Notifications */}
-        {mensaje && (
-          <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 flex items-center gap-3 shadow-sm animate-fade-in">
-            <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
-            <p className="text-green-800 dark:text-green-200 font-medium flex-1">{mensaje}</p>
-            <button onClick={() => setMensaje(null)} className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-        
-        {error && (
-          <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 flex items-center gap-3 shadow-sm animate-fade-in">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
-            <p className="text-red-800 dark:text-red-200 font-medium flex-1">{error}</p>
-            <button onClick={() => setError(null)} className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="relative">
-              <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-200 dark:border-blue-900 border-t-blue-600 dark:border-t-blue-400" />
-              <Settings className="absolute inset-0 m-auto h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400 font-medium">Cargando configuración...</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Secciones */}
-            {secciones.map((seccion) => {
-              const categoriasSeccion = categorias[seccion.id] || [];
-              const colors = colorClasses[seccion.color];
-              
-              return (
-                <div key={seccion.id} className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-                  {/* Header de Sección */}
-                  <button
-                    onClick={() => setSeccionExpandida(seccionExpandida === seccion.id ? null : seccion.id)}
-                    className="w-full px-6 py-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`rounded-xl ${colors.bg} p-3 ${colors.text} ring-1 ${colors.border}`}>
-                        {seccion.icono}
-                      </div>
-                      <div className="text-left">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {seccion.titulo}
-                        </h2>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">{seccion.descripcion}</p>
-                      </div>
-                    </div>
-                    <ChevronRight
-                      className={`h-5 w-5 text-gray-400 transition-transform ${
-                        seccionExpandida === seccion.id ? 'rotate-90' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {/* Contenido Expandible */}
-                  {seccionExpandida === seccion.id && (
-                    <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30">
-                      <div className="p-6 space-y-6">
-                        {categoriasSeccion.map((categoria) => {
-                          const items = catalogos[categoria.id];
-                          const itemsFiltrados = filtrarItems(items, categoria.id);
-                          
-                          return (
-                            <div key={categoria.id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-                              {/* Header de Categoría */}
-                              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-800">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
-                                      {categoria.icono}
-                                    </div>
-                                    <div>
-                                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{categoria.titulo}</h3>
-                                      <p className="text-sm text-gray-600 dark:text-gray-400">{categoria.descripcion}</p>
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => openModal('create', categoria.id)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                    Agregar
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Barra de Búsqueda */}
-                              <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-1 relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                    <input
-                                      type="text"
-                                      value={searchTerms[categoria.id]}
-                                      onChange={(e) => setSearchTerms({ ...searchTerms, [categoria.id]: e.target.value })}
-                                      className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                      placeholder="Buscar por nombre o código..."
-                                    />
-                                  </div>
-                                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                                    <BarChart3 className="h-4 w-4 text-gray-400" />
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                      {itemsFiltrados.length} / {items.length}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Lista de Items */}
-                              <div className="p-6">
-                                {itemsFiltrados.length === 0 ? (
-                                  <div className="text-center py-12">
-                                    <div className="mx-auto w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-                                      <Database className="h-8 w-8 text-gray-400" />
-                                    </div>
-                                    <p className="text-gray-600 dark:text-gray-400 font-medium">
-                                      {searchTerms[categoria.id] 
-                                        ? 'No se encontraron resultados' 
-                                        : 'No hay elementos. Agrega el primero.'}
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <div className="space-y-2">
-                                    {itemsFiltrados.map((item, index) => (
-                                      <div
-                                        key={item.id}
-                                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
-                                          item.activo
-                                            ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md'
-                                            : 'bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-700 opacity-60'
-                                        }`}
-                                      >
-                                        {/* Número de orden */}
-                                        <div className="flex items-center justify-center w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm font-bold text-gray-600 dark:text-gray-400">
-                                          {index + 1}
-                                        </div>
-
-                                        {/* Color indicator */}
-                                        {categoria.usaColor && item.color && (
-                                          <div className="relative group">
-                                            <div
-                                              className="w-12 h-12 rounded-lg border-2 border-gray-300 dark:border-gray-700 shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                                              style={{ backgroundColor: item.color }}
-                                              title={`Color: ${item.color}`}
-                                            />
-                                            <Palette className="absolute bottom-1 right-1 h-3 w-3 text-white drop-shadow-lg" />
-                                          </div>
-                                        )}
-
-                                        {/* Código */}
-                                        {categoria.usaCodigo && (
-                                          <div className="px-3 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                                            <span className="text-xs font-mono font-bold text-gray-700 dark:text-gray-300">
-                                              {item.codigo || '-'}
-                                            </span>
-                                          </div>
-                                        )}
-
-                                        {/* Nombre */}
-                                        <div className="flex-1 min-w-0">
-                                          <span className={`text-base font-semibold truncate block ${
-                                            item.activo ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
-                                          }`}>
-                                            {item.nombre}
-                                          </span>
-                                        </div>
-
-                                        {/* Estado */}
-                                        <button
-                                          onClick={() => toggleActivo(item)}
-                                          disabled={guardando}
-                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all ${
-                                            item.activo
-                                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50'
-                                              : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'
-                                          } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                        >
-                                          {item.activo ? (
-                                            <>
-                                              <Check className="h-3 w-3" />
-                                              Activo
-                                            </>
-                                          ) : (
-                                            <>
-                                              <X className="h-3 w-3" />
-                                              Inactivo
-                                            </>
-                                          )}
-                                        </button>
-
-                                        {/* Acciones */}
-                                        <div className="flex gap-1">
-                                          <button
-                                            onClick={() => openModal('edit', categoria.id, item)}
-                                            disabled={guardando}
-                                            className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50"
-                                            title="Editar"
-                                          >
-                                            <Edit2 className="w-4 h-4" />
-                                          </button>
-                                          <button
-                                            onClick={() => eliminarItem(item.id!, item.nombre)}
-                                            disabled={guardando}
-                                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
-                                            title="Eliminar"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Modal para Crear/Editar */}
-        {modalOpen && modalCategoria && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm p-4">
-            <div className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 p-6 text-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-white/20 backdrop-blur-sm">
-                      {modalMode === 'edit' ? <Edit2 className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold">
-                        {modalMode === 'edit' ? 'Editar' : 'Agregar'}{' '}
-                        {Object.values(categorias).flat().find(c => c.id === modalCategoria)?.titulo}
-                      </h2>
-                      <p className="text-sm text-blue-100 mt-0.5">
-                        {Object.values(categorias).flat().find(c => c.id === modalCategoria)?.descripcion}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={closeModal}
-                    className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-6 space-y-4">
-                {/* Nombre */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Nombre <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={modalData.nombre}
-                    onChange={(e) => setModalData({ ...modalData, nombre: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={Object.values(categorias).flat().find(c => c.id === modalCategoria)?.placeholder}
-                    autoFocus
-                  />
-                </div>
-
-                {/* Código */}
-                {Object.values(categorias).flat().find(c => c.id === modalCategoria)?.usaCodigo && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Código
-                    </label>
-                    <input
-                      type="text"
-                      value={modalData.codigo}
-                      onChange={(e) => setModalData({ ...modalData, codigo: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
-                      placeholder="Ej: V1, A2"
-                    />
-                  </div>
-                )}
-
-                {/* Color */}
-                {Object.values(categorias).flat().find(c => c.id === modalCategoria)?.usaColor && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Color
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={modalData.color}
-                        onChange={(e) => setModalData({ ...modalData, color: e.target.value })}
-                        className="w-20 h-12 rounded-lg border-2 border-gray-300 dark:border-gray-700 cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={modalData.color}
-                        onChange={(e) => setModalData({ ...modalData, color: e.target.value })}
-                        className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono uppercase"
-                        placeholder="#3B82F6"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Footer */}
-              <div className="border-t border-gray-200 dark:border-gray-800 p-6 bg-gray-50 dark:bg-gray-800/50">
-                <div className="flex gap-3 justify-end">
-                  <button
-                    onClick={closeModal}
-                    className="px-6 py-2.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 font-semibold transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleSubmitModal}
-                    disabled={guardando || !modalData.nombre.trim()}
-                    className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold transition-colors flex items-center gap-2 disabled:cursor-not-allowed"
-                  >
-                    {guardando ? (
-                      <>
-                        <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4" />
-                        {modalMode === 'edit' ? 'Actualizar' : 'Guardar'}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+  return (
+    <div className="container mx-auto px-6 py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Settings className="w-8 h-8" />
+            Configuración del Sistema
+          </h1>
+          <p className="text-muted-foreground">
+            Administración de catálogos, bases de datos y usuarios
+          </p>
+        </div>
       </div>
 
-      <style jsx global>{`
-        .bg-grid-white\/10 {
-          background-image: linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-          background-size: 20px 20px;
-        }
-        
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-      `}</style>
+      {/* Tabs Principales */}
+      <Tabs
+        value={mainTab}
+        onValueChange={(v) => setMainTab(v as typeof mainTab)}
+        className="space-y-4"
+      >
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="nuevos" className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4" />
+            Configuración Nuevos Usuarios
+          </TabsTrigger>
+          <TabsTrigger value="base-datos" className="flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            Administración Base de Datos
+          </TabsTrigger>
+          <TabsTrigger value="usuarios" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Administración de Usuarios
+          </TabsTrigger>
+        </TabsList>
+
+        {/* SECCIÓN 1: CONFIGURACIÓN NUEVOS USUARIOS */}
+        <TabsContent value="nuevos" className="space-y-4">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              Catálogos para Nuevos Usuarios
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Gestiona los catálogos utilizados en el formulario de registro de
+              nuevos usuarios
+            </p>
+
+            <Tabs defaultValue="etnias" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-6">
+                <TabsTrigger value="etnias">Etnias</TabsTrigger>
+                <TabsTrigger value="nacionalidades">Nacionalidades</TabsTrigger>
+                <TabsTrigger value="sectores">Sectores</TabsTrigger>
+                <TabsTrigger value="subsectores">Subsectores</TabsTrigger>
+                <TabsTrigger value="establecimientos">
+                  Establecimientos
+                </TabsTrigger>
+                <TabsTrigger value="centros">Centros de Salud</TabsTrigger>
+              </TabsList>
+
+              {/* ETNIAS */}
+              <TabsContent value="etnias">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">Gestión de Etnias</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Total: {etnias.length} registros (
+                      {etnias.filter((e) => e.activo).length} activos,{" "}
+                      {etnias.filter((e) => !e.activo).length} inactivos)
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() =>
+                      setShowForm(showForm === "etnia" ? null : "etnia")
+                    }
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nueva Etnia
+                  </Button>
+                </div>
+                {showForm === "etnia" && (
+                  <FormularioCatalogo
+                    tipo="etnia"
+                    formData={formData}
+                    setFormData={setFormData}
+                    editingItem={editingItem}
+                    resetForm={resetForm}
+                    handleSubmit={handleSubmit}
+                    sectores={sectores}
+                    establecimientos={establecimientos}
+                  />
+                )}
+                <TablaCatalogo
+                  items={etnias}
+                  tipo="etnia"
+                  showInactivos={showInactivos}
+                  setShowInactivos={setShowInactivos}
+                  handleEdit={handleEdit}
+                  handleToggleActivo={handleToggleActivo}
+                  handleDeletePermanent={handleDeletePermanent}
+                />
+              </TabsContent>
+
+              {/* NACIONALIDADES */}
+              <TabsContent value="nacionalidades">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      Gestión de Nacionalidades
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Total: {nacionalidades.length} registros (
+                      {nacionalidades.filter((n) => n.activo).length} activos,{" "}
+                      {nacionalidades.filter((n) => !n.activo).length}{" "}
+                      inactivos)
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() =>
+                      setShowForm(
+                        showForm === "nacionalidad" ? null : "nacionalidad"
+                      )
+                    }
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nueva Nacionalidad
+                  </Button>
+                </div>
+                {showForm === "nacionalidad" && (
+                  <FormularioCatalogo
+                    tipo="nacionalidad"
+                    formData={formData}
+                    setFormData={setFormData}
+                    editingItem={editingItem}
+                    resetForm={resetForm}
+                    handleSubmit={handleSubmit}
+                    sectores={sectores}
+                    establecimientos={establecimientos}
+                  />
+                )}
+                <TablaCatalogo
+                  items={nacionalidades}
+                  tipo="nacionalidad"
+                  showInactivos={showInactivos}
+                  setShowInactivos={setShowInactivos}
+                  handleEdit={handleEdit}
+                  handleToggleActivo={handleToggleActivo}
+                  handleDeletePermanent={handleDeletePermanent}
+                  showCodigoPais
+                />
+              </TabsContent>
+
+              {/* SECTORES */}
+              <TabsContent value="sectores">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      Gestión de Sectores
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Total: {sectores.length} registros (
+                      {sectores.filter((s) => s.activo).length} activos,{" "}
+                      {sectores.filter((s) => !s.activo).length} inactivos)
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() =>
+                      setShowForm(showForm === "sector" ? null : "sector")
+                    }
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nuevo Sector
+                  </Button>
+                </div>
+                {showForm === "sector" && (
+                  <FormularioCatalogo
+                    tipo="sector"
+                    formData={formData}
+                    setFormData={setFormData}
+                    editingItem={editingItem}
+                    resetForm={resetForm}
+                    handleSubmit={handleSubmit}
+                    sectores={sectores}
+                    establecimientos={establecimientos}
+                  />
+                )}
+                <TablaCatalogo
+                  items={sectores}
+                  tipo="sector"
+                  showInactivos={showInactivos}
+                  setShowInactivos={setShowInactivos}
+                  handleEdit={handleEdit}
+                  handleToggleActivo={handleToggleActivo}
+                  handleDeletePermanent={handleDeletePermanent}
+                  showColor
+                />
+              </TabsContent>
+
+              {/* SUBSECTORES */}
+              <TabsContent value="subsectores">
+                {showForm === "subsector" && (
+                  <FormularioCatalogo
+                    tipo="subsector"
+                    formData={formData}
+                    setFormData={setFormData}
+                    editingItem={editingItem}
+                    resetForm={resetForm}
+                    handleSubmit={handleSubmit}
+                    sectores={sectores}
+                    establecimientos={establecimientos}
+                  />
+                )}
+                <TablaCatalogo
+                  items={subsectores}
+                  tipo="subsector"
+                  showInactivos={showInactivos}
+                  setShowInactivos={setShowInactivos}
+                  handleEdit={handleEdit}
+                  handleToggleActivo={handleToggleActivo}
+                  handleDeletePermanent={handleDeletePermanent}
+                  showColor
+                  showSector
+                />
+              </TabsContent>
+
+              {/* ESTABLECIMIENTOS */}
+              <TabsContent value="establecimientos">
+                {showForm === "establecimiento" && (
+                  <FormularioCatalogo
+                    tipo="establecimiento"
+                    formData={formData}
+                    setFormData={setFormData}
+                    editingItem={editingItem}
+                    resetForm={resetForm}
+                    handleSubmit={handleSubmit}
+                    sectores={sectores}
+                    establecimientos={establecimientos}
+                  />
+                )}
+                <TablaCatalogo
+                  items={establecimientos}
+                  tipo="establecimiento"
+                  showInactivos={showInactivos}
+                  setShowInactivos={setShowInactivos}
+                  handleEdit={handleEdit}
+                  handleToggleActivo={handleToggleActivo}
+                  handleDeletePermanent={handleDeletePermanent}
+                />
+              </TabsContent>
+
+              {/* CENTROS DE SALUD */}
+              <TabsContent value="centros">
+                {showForm === "centro" && (
+                  <FormularioCatalogo
+                    tipo="centro"
+                    formData={formData}
+                    setFormData={setFormData}
+                    editingItem={editingItem}
+                    resetForm={resetForm}
+                    handleSubmit={handleSubmit}
+                    sectores={sectores}
+                    establecimientos={establecimientos}
+                  />
+                )}
+                <TablaCatalogo
+                  items={centros}
+                  tipo="centro"
+                  showInactivos={showInactivos}
+                  setShowInactivos={setShowInactivos}
+                  handleEdit={handleEdit}
+                  handleToggleActivo={handleToggleActivo}
+                  handleDeletePermanent={handleDeletePermanent}
+                  showEstablecimiento
+                />
+              </TabsContent>
+
+              {/* CENTROS DE SALUD */}
+              <TabsContent value="centros">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      Gestión de Centros de Salud
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Total: {centros.length} registros (
+                      {centros.filter((c) => c.activo).length} activos,{" "}
+                      {centros.filter((c) => !c.activo).length} inactivos)
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() =>
+                      setShowForm(showForm === "centro" ? null : "centro")
+                    }
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nuevo Centro
+                  </Button>
+                </div>
+                {showForm === "centro" && (
+                  <FormularioCatalogo
+                    tipo="centro"
+                    formData={formData}
+                    setFormData={setFormData}
+                    editingItem={editingItem}
+                    resetForm={resetForm}
+                    handleSubmit={handleSubmit}
+                    sectores={sectores}
+                    establecimientos={establecimientos}
+                  />
+                )}
+                <TablaCatalogo
+                  items={centros}
+                  tipo="centro"
+                  showInactivos={showInactivos}
+                  setShowInactivos={setShowInactivos}
+                  handleEdit={handleEdit}
+                  handleToggleActivo={handleToggleActivo}
+                  handleDeletePermanent={handleDeletePermanent}
+                  showEstablecimiento
+                />
+              </TabsContent>
+            </Tabs>
+          </Card>
+        </TabsContent>
+
+        {/* SECCIÓN 2: ADMINISTRACIÓN BASE DE DATOS */}
+        <TabsContent value="base-datos">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              Administración de Base de Datos
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Gestión de cortes FONASA, base TrakCare y validaciones
+            </p>
+            <div className="text-center py-12 text-muted-foreground">
+              Funcionalidades de administración de base de datos (próximamente)
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* SECCIÓN 3: ADMINISTRACIÓN DE USUARIOS */}
+        <TabsContent value="usuarios">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              Administración de Usuarios del Sistema
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Gestión de cuentas de acceso al sistema
+            </p>
+            <div className="text-center py-12 text-muted-foreground">
+              Gestión de usuarios registrados en el sistema (próximamente)
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
