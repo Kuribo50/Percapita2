@@ -81,7 +81,7 @@ export default function GestionCortesPage() {
       const data = await response.json();
       
       // Extraer los cortes del summary
-      const cortesData: CorteMensual[] = (data.summary || []).map((item: any) => {
+      const cortesData: CorteMensual[] = (data.summary || []).map((item: { month: string; label: string; total?: number; validated?: number; nonValidated?: number; non_validated?: number; }) => {
         const [year, month] = item.month.split('-').map(Number);
         return {
           month: item.month,

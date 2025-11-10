@@ -18,23 +18,52 @@ export interface MenuItem {
 export interface NuevoUsuario {
   id?: number;
   run: string;
+  nombres?: string;
+  apellidoPaterno?: string;
+  apellidoMaterno?: string;
   nombreCompleto: string;
   fechaSolicitud: string;
+  fechaInscripcion?: string;
   periodoMes: number;
   periodoAnio: number;
   periodoStr?: string;
-  nacionalidad?: string;
-  etnia?: string;
-  sector?: string;
-  subsector?: string;
+  nacionalidad?: number | string;
+  etnia?: number | string;
+  sector?: number | string;
+  subsector?: number | string;
+  codigoSector?: string;
   codigoPercapita?: string;
-  establecimiento?: string;
+  centro?: string;
+  establecimiento?: number | string;
   observaciones?: string;
-  estado: 'PENDIENTE' | 'VALIDADO' | 'NO_VALIDADO';
+  estado: "PENDIENTE" | "VALIDADO" | "NO_VALIDADO" | "FALLECIDO";
   validacion?: number;
   creadoEl?: string;
   modificadoEl?: string;
   creadoPor?: string;
+  modificadoPor?: string;
+  // Campos de revisión
+  revisado?: boolean;
+  revisadoManualmente?: boolean;
+  revisadoPor?: string;
+  revisadoEl?: string;
+  // Observaciones HP Trakcare
+  observacionesTrakcare?: string;
+  checklistTrakcare?: {
+    datosBasicosVerificados?: boolean;
+    documentacionCompleta?: boolean;
+    direccionActualizada?: boolean;
+    telefonoActualizado?: boolean;
+    previsionActualizada?: boolean;
+    datosFamiliaresVerificados?: boolean;
+    [key: string]: boolean | undefined;
+  };
+  // Información de validación desde el corte FONASA
+  infoValidacion?: {
+    aceptadoRechazado?: string;
+    motivo?: string;
+    motivoNormalizado?: string;
+  };
 }
 
 export interface EstadisticasNuevosUsuarios {
@@ -42,6 +71,7 @@ export interface EstadisticasNuevosUsuarios {
   pendientes: number;
   validados: number;
   noValidados: number;
+  fallecidos: number;
 }
 
 export interface NuevosUsuariosResponse {
@@ -83,6 +113,7 @@ export interface EstadisticasGenerales {
     pendientes: number;
     validados: number;
     noValidados: number;
+    fallecidos: number;
   };
   historicoMeses: MesData[];
 }
@@ -90,7 +121,7 @@ export interface EstadisticasGenerales {
 // Catálogos
 export interface Catalogo {
   id?: number;
-  tipo: 'ETNIA' | 'NACIONALIDAD' | 'SECTOR' | 'SUBSECTOR' | 'ESTABLECIMIENTO';
+  tipo: "ETNIA" | "NACIONALIDAD" | "SECTOR" | "SUBSECTOR" | "ESTABLECIMIENTO";
   nombre: string;
   codigo?: string | null;
   color?: string | null;

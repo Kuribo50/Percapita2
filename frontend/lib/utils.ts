@@ -1,71 +1,97 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
-// Formateo seguro de números con locale por defecto es-CL
-export function formatNumber(
-  value: unknown,
-  locale: string = 'es-CL',
-  options?: Intl.NumberFormatOptions,
-  fallback: string = '0'
-): string {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value.toLocaleString(locale, options)
-  }
-  if (typeof value === 'string' && value.trim() !== '') {
-    const n = Number(value)
-    if (Number.isFinite(n)) return n.toLocaleString(locale, options)
-  }
-  return fallback
+/**
+ * Limpia el RUT eliminando puntos, guiones y espacios
+ */
+export function cleanRut(rut: string): string {
+  return rut.replace(/[.\s-]/g, "");
 }
 
-// Funciones para manejo de RUT chileno
+/**
+ * Maneja la entrada de RUT, eliminando caracteres no válidos
+ */
 export function handleRutInput(value: string): string {
-  // Eliminar todo excepto números y K
-  return value.toUpperCase().replace(/[^0-9K]/g, '').slice(0, 9);
+  // Permitir solo números y la letra K
+  return value.replace(/[^0-9kK]/g, "").toUpperCase();
 }
 
-export function formatRut(value: string): string {
-  // Eliminar formato previo
-  const clean = value.replace(/[^0-9K]/g, '');
+/**
+ * Formatea el RUT con guión (ej: 12345678-9)
+ */
+export function formatRut(rut: string): string {
+  // Limpiar el RUT
+  const cleaned = cleanRut(rut);
 
-  if (clean.length <= 1) return clean;
+  if (cleaned.length < 2) {
+    return cleaned;
+  }
 
-  // Separar dígito verificador
-  const dv = clean.slice(-1);
-  const numbers = clean.slice(0, -1);
-
-  if (numbers.length === 0) return '';
+  // Separar el dígito verificador
+  const body = cleaned.slice(0, -1);
+  const dv = cleaned.slice(-1);
 
   // Formatear con guión
-  return `${numbers}-${dv}`;
+  return `${body}-${dv}`;
 }
 
-export function validateRut(rut: string): boolean {
-  // Limpiar el RUT
-  const cleanRut = rut.replace(/[^0-9K]/g, '');
+/**
+ * Calcula el dígito verificador de un RUT
+ */
+export function calculateDV(rut: string): string {
+  const cleaned = cleanRut(rut);
 
-  if (cleanRut.length < 2) return false;
+  if (!/^[0-9]+$/.test(cleaned)) {
+    return "";
+  }
 
-  // Separar cuerpo y dígito verificador
-  const body = cleanRut.slice(0, -1);
-  const dv = cleanRut.slice(-1);
-
-  // Calcular dígito verificador esperado
   let sum = 0;
   let multiplier = 2;
 
-  // Recorrer de derecha a izquierda
-  for (let i = body.length - 1; i >= 0; i--) {
-    sum += parseInt(body[i]) * multiplier;
+  // Calcular desde el final hacia el inicio sobre el cuerpo del RUN
+  for (let i = cleaned.length - 1; i >= 0; i--) {
+    sum += parseInt(cleaned[i], 10) * multiplier;
     multiplier = multiplier === 7 ? 2 : multiplier + 1;
   }
 
-  const expectedDv = 11 - (sum % 11);
-  const expectedDvStr = expectedDv === 11 ? '0' : expectedDv === 10 ? 'K' : expectedDv.toString();
+  const remainder = sum % 11;
+  const dv = 11 - remainder;
 
-  return dv === expectedDvStr;
+  if (dv === 11) return "0";
+  if (dv === 10) return "K";
+  return dv.toString();
+}
+
+/**
+ * Valida si un RUT es válido
+ */
+export function validateRut(rut: string): boolean {
+  if (!rut || rut.length < 3) {
+    return false;
+  }
+
+  const cleaned = cleanRut(rut);
+  const body = cleaned.slice(0, -1);
+  const dv = cleaned.slice(-1).toUpperCase();
+
+  // Verificar que el cuerpo solo contenga números
+  if (!/^\d+$/.test(body)) {
+    return false;
+  }
+
+  // Calcular y comparar DV
+  const calculatedDV = calculateDV(body);
+  return dv === calculatedDV;
+}
+
+/**
+ * Formatea un número con separadores de miles
+ */
+export function formatNumber(num: number | string): string {
+  if (typeof num === "string") return num;
+  return new Intl.NumberFormat("es-CL").format(num);
 }

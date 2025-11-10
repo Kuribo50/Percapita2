@@ -10,6 +10,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isReady: boolean;
+  loginAsDevAdmin: () => void;
 }
 
 interface RegisterData {
@@ -114,7 +115,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Login exitoso - guardar usuario sin la contraseña
-    const { password: _, ...userWithoutPassword } = foundUser;
+  // Construir el usuario sin exponer la contraseña
+    const userWithoutPassword: User = {
+      rut: foundUser.rut,
+      nombre: foundUser.nombre,
+      apellido: foundUser.apellido,
+      email: foundUser.email,
+      establecimiento: foundUser.establecimiento,
+      rol: foundUser.rol,
+    };
     
     setUser(userWithoutPassword);
     setIsAuthenticated(true);
@@ -129,8 +138,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('currentUser');
   };
 
+  // Solo para desarrollo: crear sesión con un usuario admin de prueba
+  const loginAsDevAdmin = () => {
+    try {
+      const devUser: User = {
+        rut: '11111111-1',
+        nombre: 'Admin',
+        apellido: 'Dev',
+        email: 'admin.dev@local',
+        establecimiento: 'DEV',
+        rol: 'admin',
+      };
+
+      setUser(devUser);
+      setIsAuthenticated(true);
+      localStorage.setItem('currentUser', JSON.stringify(devUser));
+
+      // Opcional: asegurar que exista en la lista de registrados para coherencia
+      const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]') as StoredUser[];
+      const exists = registeredUsers.some(u => u.rut === devUser.rut);
+      if (!exists) {
+        registeredUsers.push({
+          ...devUser,
+          password: 'dev',
+        });
+        localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+      }
+    } catch {
+      // noop
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated, isReady }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated, isReady, loginAsDevAdmin }}>
       {children}
     </AuthContext.Provider>
   );

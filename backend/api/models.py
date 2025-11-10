@@ -2,6 +2,8 @@ from typing import Optional
 
 from django.db import models
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.auth.hashers import make_password, check_password
 
 
 def normalize_run(value: str) -> str:
@@ -79,7 +81,108 @@ def normalize_motivo(value: Optional[str]) -> str:
 	return normalized.strip()
 
 
+# =============================================================================
+# MODELOS DE CATÁLOGOS SIMPLIFICADOS
+# =============================================================================
+
+class Etnia(models.Model):
+	"""Catálogo de etnias."""
+	nombre = models.CharField(max_length=255)
+	activo = models.BooleanField(default=True, db_index=True)
+	
+	class Meta:
+		ordering = ['nombre']
+		verbose_name = 'Etnia'
+		verbose_name_plural = 'Etnias'
+		indexes = [
+			models.Index(fields=['activo']),
+		]
+	
+	def __str__(self) -> str:
+		return self.nombre
+
+
+class Nacionalidad(models.Model):
+	"""Catálogo de nacionalidades."""
+	nombre = models.CharField(max_length=255)
+	activo = models.BooleanField(default=True, db_index=True)
+	
+	class Meta:
+		ordering = ['nombre']
+		verbose_name = 'Nacionalidad'
+		verbose_name_plural = 'Nacionalidades'
+		indexes = [
+			models.Index(fields=['activo']),
+		]
+	
+	def __str__(self) -> str:
+		return self.nombre
+
+
+class Sector(models.Model):
+	"""Catálogo de sectores."""
+	nombre = models.CharField(max_length=255)
+	activo = models.BooleanField(default=True, db_index=True)
+	
+	class Meta:
+		ordering = ['nombre']
+		verbose_name = 'Sector'
+		verbose_name_plural = 'Sectores'
+		indexes = [
+			models.Index(fields=['activo']),
+		]
+	
+	def __str__(self) -> str:
+		return self.nombre
+
+
+class Subsector(models.Model):
+	"""Catálogo de subsectores."""
+	nombre = models.CharField(max_length=255)
+	codigo = models.CharField(max_length=50, blank=True, null=True, db_index=True)
+	activo = models.BooleanField(default=True, db_index=True)
+	
+	class Meta:
+		ordering = ['codigo', 'nombre']
+		verbose_name = 'Subsector'
+		verbose_name_plural = 'Subsectores'
+		indexes = [
+			models.Index(fields=['activo']),
+			models.Index(fields=['codigo']),
+		]
+
+	def __str__(self) -> str:
+		if self.codigo:
+			return f"{self.nombre} ({self.codigo})"
+		return self.nombre
+
+
+class Establecimiento(models.Model):
+	"""Catálogo de establecimientos y centros de salud."""
+	nombre = models.CharField(max_length=255)
+	codigo = models.CharField(max_length=50, blank=True, null=True, db_index=True)
+	activo = models.BooleanField(default=True, db_index=True)
+	
+	class Meta:
+		ordering = ['nombre']
+		verbose_name = 'Establecimiento'
+		verbose_name_plural = 'Establecimientos'
+		indexes = [
+			models.Index(fields=['activo']),
+		]
+	
+	def __str__(self) -> str:
+		if self.codigo:
+			return f"{self.nombre} ({self.codigo})"
+		return self.nombre
+
+
+# =============================================================================
+# MODELOS PRINCIPALES
+# =============================================================================
+
 class CorteFonasa(models.Model):
+	"""Registro de cortes mensuales de FONASA."""
 	run = models.CharField(max_length=12, db_index=True)
 	nombres = models.CharField(max_length=255, blank=True)
 	ap_paterno = models.CharField(max_length=255, blank=True)
@@ -87,9 +190,31 @@ class CorteFonasa(models.Model):
 	fecha_nacimiento = models.DateField(null=True, blank=True)
 	genero = models.CharField(max_length=20, blank=True)
 	tramo = models.CharField(max_length=50, blank=True)
-	fecha_corte = models.DateField()
-	cod_genero = models.CharField(max_length=50, blank=True)
-	nombre_centro = models.CharField(max_length=255, blank=True)
+	fecha_corte = models.DateField(db_index=True)
+
+	# Relaciones con catálogos
+	centro_salud = models.ForeignKey(
+		Establecimiento,
+		on_delete=models.SET_NULL,
+		related_name='cortes',
+		null=True,
+		blank=True
+	)
+	nombre_centro = models.CharField(max_length=255, blank=True)  # Backup del nombre
+
+	# Información de procedencia y destino
+	centro_de_procedencia = models.CharField(max_length=255, blank=True, help_text="Centro de salud de origen")
+	comuna_de_procedencia = models.CharField(max_length=100, blank=True, help_text="Comuna de origen")
+	centro_actual = models.CharField(max_length=255, blank=True, help_text="Centro de salud actual/destino")
+	comuna_actual = models.CharField(max_length=100, blank=True, help_text="Comuna actual/destino")
+
+	# Estado y motivo
+	aceptado_rechazado = models.CharField(
+		max_length=255,
+		blank=True,
+		default='',
+		help_text="Estado de aceptación o rechazo"
+	)
 	motivo = models.CharField(max_length=255, blank=True)
 	motivo_normalizado = models.CharField(max_length=255, blank=True, default="", db_index=True)
 	creado_el = models.DateTimeField(default=timezone.now, editable=False)
@@ -97,24 +222,67 @@ class CorteFonasa(models.Model):
 	class Meta:
 		ordering = ["-fecha_corte", "run"]
 		unique_together = ("run", "fecha_corte")
+		verbose_name = 'Corte FONASA'
+		verbose_name_plural = 'Cortes FONASA'
+		indexes = [
+			models.Index(fields=['run', 'fecha_corte']),
+			models.Index(fields=['fecha_corte', 'motivo_normalizado']),
+			models.Index(fields=['-fecha_corte', 'centro_salud']),
+		]
 
 	def save(self, *args, **kwargs):
-
 		self.run = normalize_run(self.run)
 		self.motivo_normalizado = normalize_motivo(self.motivo)
 		super().save(*args, **kwargs)
+
+	@property
+	def nombre_completo(self) -> str:
+		"""Retorna el nombre completo del usuario."""
+		partes = [self.nombres, self.ap_paterno, self.ap_materno]
+		return " ".join(p for p in partes if p).strip()
 
 	def __str__(self) -> str:
 		return f"CorteFonasa({self.run} @ {self.fecha_corte:%Y-%m})"
 
 
 class HpTrakcare(models.Model):
+	"""Registro de usuarios en sistema HP Trakcare."""
 	cod_familia = models.CharField(max_length=100, blank=True)
 	relacion_parentezco = models.CharField(max_length=100, blank=True)
-	id_trakcare = models.CharField(max_length=100, blank=True)
-	etnia = models.CharField(max_length=100, blank=True)
+	id_trakcare = models.CharField(max_length=100, blank=True, db_index=True)
 	cod_registro = models.CharField(max_length=100, blank=True)
-	nacionalidad = models.CharField(max_length=100, blank=True)
+	
+	# Relaciones con catálogos
+	etnia = models.ForeignKey(
+		Etnia,
+		on_delete=models.SET_NULL,
+		related_name='hp_usuarios',
+		null=True,
+		blank=True
+	)
+	nacionalidad = models.ForeignKey(
+		Nacionalidad,
+		on_delete=models.SET_NULL,
+		related_name='hp_usuarios',
+		null=True,
+		blank=True
+	)
+	centro_inscripcion = models.ForeignKey(
+		Establecimiento,
+		on_delete=models.SET_NULL,
+		related_name='hp_usuarios',
+		null=True,
+		blank=True
+	)
+	sector = models.ForeignKey(
+		Sector,
+		on_delete=models.SET_NULL,
+		related_name='hp_usuarios',
+		null=True,
+		blank=True
+	)
+	
+	# Información personal
 	run = models.CharField(max_length=12, db_index=True, blank=True)
 	ap_paterno = models.CharField(max_length=255, blank=True)
 	ap_materno = models.CharField(max_length=255, blank=True)
@@ -122,29 +290,52 @@ class HpTrakcare(models.Model):
 	genero = models.CharField(max_length=20, blank=True)
 	fecha_nacimiento = models.DateField(null=True, blank=True)
 	edad = models.PositiveSmallIntegerField(null=True, blank=True)
+	
+	# Contacto
 	direccion = models.CharField(max_length=255, blank=True)
 	telefono = models.CharField(max_length=30, blank=True)
 	telefono_celular = models.CharField(max_length=30, blank=True)
 	telefono_recado = models.CharField(max_length=30, blank=True)
+	
+	# Información de salud
 	servicio_salud = models.CharField(max_length=255, blank=True)
-	centro_inscripcion = models.CharField(max_length=255, blank=True)
-	sector = models.CharField(max_length=100, blank=True)
 	prevision = models.CharField(max_length=100, blank=True)
 	plan_trakcare = models.CharField(max_length=100, blank=True)
 	prais_trakcare = models.CharField(max_length=100, blank=True)
+	
+	# Fechas importantes
 	fecha_incorporacion = models.DateField(null=True, blank=True)
 	fecha_ultima_modif = models.DateField(null=True, blank=True)
-	fecha_defuncion = models.DateField(null=True, blank=True)
+	fecha_defuncion = models.DateField(null=True, blank=True, db_index=True)
 	creado_el = models.DateTimeField(default=timezone.now, editable=False)
 
 	class Meta:
 		ordering = ["run", "nombre"]
+		verbose_name = 'HP Trakcare'
+		verbose_name_plural = 'HP Trakcare'
+		indexes = [
+			models.Index(fields=['run', 'fecha_defuncion']),
+			models.Index(fields=['id_trakcare']),
+			models.Index(fields=['sector', 'run']),
+		]
 
 	def save(self, *args, **kwargs):
 		self.run = normalize_run(self.run)
 		super().save(*args, **kwargs)
 
+	@property
+	def nombre_completo(self) -> str:
+		"""Retorna el nombre completo del usuario."""
+		partes = [self.nombre, self.ap_paterno, self.ap_materno]
+		return " ".join(p for p in partes if p).strip()
+
+	@property
+	def esta_vivo(self) -> bool:
+		"""Verifica si el usuario está vivo."""
+		return self.fecha_defuncion is None
+
 	def cortes_relacionados(self):
+		"""Retorna los cortes FONASA relacionados con este usuario."""
 		return CorteFonasa.objects.filter(run=self.run)
 
 	def __str__(self) -> str:
@@ -160,28 +351,80 @@ class NuevoUsuario(models.Model):
 		('PENDIENTE', 'Pendiente'),
 		('VALIDADO', 'Validado'),
 		('NO_VALIDADO', 'No Validado'),
+		('FALLECIDO', 'Fallecido'),
 	]
 
 	# Información básica del usuario
 	run = models.CharField(max_length=12, db_index=True)
-	nombre_completo = models.CharField(max_length=500)
-	fecha_solicitud = models.DateField()
+	nombres = models.CharField(max_length=200, blank=True, default='')
+	apellido_paterno = models.CharField(max_length=100, blank=True, default='')
+	apellido_materno = models.CharField(max_length=100, blank=True, default='')
+	nombre_completo = models.CharField(max_length=500, blank=True, default='')  # Se genera automáticamente
+	fecha_inscripcion = models.DateField()
 	
 	# Mes y año del periodo al que pertenece (ej: octubre 2024)
-	periodo_mes = models.PositiveSmallIntegerField()  # 1-12
-	periodo_anio = models.PositiveSmallIntegerField()  # 2024, 2025, etc.
+	periodo_mes = models.PositiveSmallIntegerField(
+		validators=[MinValueValidator(1), MaxValueValidator(12)]
+	)
+	periodo_anio = models.PositiveSmallIntegerField(
+		validators=[MinValueValidator(2000), MaxValueValidator(2100)]
+	)
+	
+	# Relaciones con catálogos
+	nacionalidad = models.ForeignKey(
+		Nacionalidad,
+		on_delete=models.SET_NULL,
+		related_name='nuevos_usuarios',
+		null=True,
+		blank=True
+	)
+	etnia = models.ForeignKey(
+		Etnia,
+		on_delete=models.SET_NULL,
+		related_name='nuevos_usuarios',
+		null=True,
+		blank=True
+	)
+	sector = models.ForeignKey(
+		Sector,
+		on_delete=models.SET_NULL,
+		related_name='nuevos_usuarios',
+		null=True,
+		blank=True
+	)
+	codigo_sector = models.CharField(max_length=50, blank=True)  # Código manual del sector
+	subsector = models.ForeignKey(
+		Subsector,
+		on_delete=models.SET_NULL,
+		related_name='nuevos_usuarios',
+		null=True,
+		blank=True
+	)
+	centro = models.CharField(max_length=200, blank=True)  # Nombre del centro de salud
+	establecimiento = models.ForeignKey(
+		Establecimiento,
+		on_delete=models.SET_NULL,
+		related_name='nuevos_usuarios',
+		null=True,
+		blank=True
+	)
 	
 	# Información adicional
-	nacionalidad = models.CharField(max_length=100, blank=True)
-	etnia = models.CharField(max_length=100, blank=True)
-	sector = models.CharField(max_length=100, blank=True)
-	subsector = models.CharField(max_length=100, blank=True)
-	codigo_percapita = models.CharField(max_length=50, blank=True)
-	establecimiento = models.CharField(max_length=255, blank=True)
+	codigo_percapita = models.CharField(max_length=50, blank=True, db_index=True)
 	observaciones = models.TextField(blank=True)
 	
 	# Estado de validación
-	estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
+	estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', db_index=True)
+	
+	# Campos de revisión
+	revisado = models.BooleanField(default=False, db_index=True)
+	revisado_manualmente = models.BooleanField(default=False)
+	revisado_por = models.CharField(max_length=100, blank=True, default='')
+	revisado_el = models.DateTimeField(null=True, blank=True)
+	
+	# Observaciones sobre HP Trakcare
+	observaciones_trakcare = models.TextField(blank=True, default='')
+	checklist_trakcare = models.JSONField(default=dict, blank=True)
 	
 	# Relación con validación (cuando se compare con el corte)
 	validacion = models.ForeignKey(
@@ -196,24 +439,33 @@ class NuevoUsuario(models.Model):
 	creado_el = models.DateTimeField(default=timezone.now, editable=False)
 	modificado_el = models.DateTimeField(auto_now=True)
 	creado_por = models.CharField(max_length=100, blank=True)
+	modificado_por = models.CharField(max_length=100, blank=True, default='')
 
 	class Meta:
-		ordering = ["-periodo_anio", "-periodo_mes", "fecha_solicitud"]
+		ordering = ["-periodo_anio", "-periodo_mes", "fecha_inscripcion"]
+		verbose_name = 'Nuevo Usuario'
+		verbose_name_plural = 'Nuevos Usuarios'
 		indexes = [
 			models.Index(fields=['periodo_anio', 'periodo_mes']),
 			models.Index(fields=['estado']),
 			models.Index(fields=['run', 'periodo_anio', 'periodo_mes']),
+			models.Index(fields=['-periodo_anio', '-periodo_mes', 'estado']),
 		]
 
 	def save(self, *args, **kwargs):
 		self.run = normalize_run(self.run)
+		# Generar nombre completo automáticamente
+		partes_nombre = [self.nombres, self.apellido_paterno, self.apellido_materno]
+		self.nombre_completo = ' '.join(filter(None, partes_nombre))
 		super().save(*args, **kwargs)
 
 	@property
 	def periodo_str(self):
 		"""Retorna el periodo en formato legible (ej: 'Octubre 2024')"""
-		meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-				 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+		meses = [
+			'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+			'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+		]
 		if 1 <= self.periodo_mes <= 12:
 			return f"{meses[self.periodo_mes - 1]} {self.periodo_anio}"
 		return f"{self.periodo_anio}-{self.periodo_mes:02d}"
@@ -228,8 +480,12 @@ class ValidacionCorte(models.Model):
 	Compara los nuevos usuarios del mes anterior con el corte recién subido.
 	"""
 	# Periodo validado (el mes de los nuevos usuarios)
-	periodo_mes = models.PositiveSmallIntegerField()  # 1-12
-	periodo_anio = models.PositiveSmallIntegerField()  # 2024, 2025, etc.
+	periodo_mes = models.PositiveSmallIntegerField(
+		validators=[MinValueValidator(1), MaxValueValidator(12)]
+	)
+	periodo_anio = models.PositiveSmallIntegerField(
+		validators=[MinValueValidator(2000), MaxValueValidator(2100)]
+	)
 	
 	# Fecha del corte con el que se compara
 	fecha_corte = models.DateField()
@@ -248,57 +504,33 @@ class ValidacionCorte(models.Model):
 	class Meta:
 		ordering = ["-periodo_anio", "-periodo_mes"]
 		unique_together = ("periodo_anio", "periodo_mes", "fecha_corte")
+		verbose_name = 'Validación de Corte'
+		verbose_name_plural = 'Validaciones de Corte'
+		indexes = [
+			models.Index(fields=['-periodo_anio', '-periodo_mes']),
+			models.Index(fields=['fecha_corte']),
+		]
 
 	@property
 	def periodo_str(self):
 		"""Retorna el periodo en formato legible"""
-		meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-				 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+		meses = [
+			'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+			'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+		]
 		if 1 <= self.periodo_mes <= 12:
 			return f"{meses[self.periodo_mes - 1]} {self.periodo_anio}"
 		return f"{self.periodo_anio}-{self.periodo_mes:02d}"
 
+	@property
+	def tasa_validacion(self) -> float:
+		"""Calcula el porcentaje de usuarios validados."""
+		if self.total_usuarios == 0:
+			return 0.0
+		return round((self.usuarios_validados / self.total_usuarios) * 100, 2)
+
 	def __str__(self) -> str:
 		return f"ValidacionCorte({self.periodo_str} - {self.fecha_corte})"
-
-
-class Catalogo(models.Model):
-	"""
-	Catálogo configurable para etnias, nacionalidades, sectores, subsectores y establecimientos.
-	Permite gestionar las opciones disponibles para el registro de nuevos usuarios.
-	"""
-	TIPO_CHOICES = [
-		('ETNIA', 'Etnia'),
-		('NACIONALIDAD', 'Nacionalidad'),
-		('SECTOR', 'Sector'),
-		('SUBSECTOR', 'Subsector'),
-		('ESTABLECIMIENTO', 'Establecimiento'),
-	]
-
-	tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, db_index=True)
-	nombre = models.CharField(max_length=255)
-	codigo = models.CharField(max_length=50, blank=True, null=True)
-	color = models.CharField(max_length=7, blank=True, null=True)  # Formato hexadecimal #RRGGBB
-	activo = models.BooleanField(default=True)
-	orden = models.PositiveSmallIntegerField(default=0)
-	
-	# Metadatos
-	creado_el = models.DateTimeField(default=timezone.now, editable=False)
-	modificado_el = models.DateTimeField(auto_now=True)
-
-	class Meta:
-		ordering = ['tipo', 'orden', 'nombre']
-		unique_together = ('tipo', 'nombre')
-		indexes = [
-			models.Index(fields=['tipo', 'activo']),
-		]
-		verbose_name = 'Catálogo'
-		verbose_name_plural = 'Catálogos'
-
-	def __str__(self) -> str:
-		if self.codigo:
-			return f"{self.get_tipo_display()}: {self.nombre} ({self.codigo})"
-		return f"{self.get_tipo_display()}: {self.nombre}"
 
 
 class HistorialCarga(models.Model):
@@ -315,18 +547,27 @@ class HistorialCarga(models.Model):
 		('EXITOSO', 'Exitoso'),
 		('ERROR', 'Error'),
 		('PARCIAL', 'Parcial'),
+		('EN_PROCESO', 'En Proceso'),
 	]
 
 	# Información de la carga
 	tipo_carga = models.CharField(max_length=20, choices=TIPO_CHOICES, db_index=True)
 	nombre_archivo = models.CharField(max_length=500)
-	usuario = models.CharField(max_length=255)  # Nombre del usuario que realizó la carga
+	usuario = models.CharField(max_length=255)
 	fecha_carga = models.DateTimeField(default=timezone.now, db_index=True)
 	
 	# Periodo de los datos (para Corte FONASA)
-	periodo_mes = models.PositiveSmallIntegerField(null=True, blank=True)  # 1-12
-	periodo_anio = models.PositiveSmallIntegerField(null=True, blank=True)  # 2024, 2025, etc.
-	fecha_corte = models.DateField(null=True, blank=True)  # Fecha específica del corte
+	periodo_mes = models.PositiveSmallIntegerField(
+		null=True,
+		blank=True,
+		validators=[MinValueValidator(1), MaxValueValidator(12)]
+	)
+	periodo_anio = models.PositiveSmallIntegerField(
+		null=True,
+		blank=True,
+		validators=[MinValueValidator(2000), MaxValueValidator(2100)]
+	)
+	fecha_corte = models.DateField(null=True, blank=True)
 	
 	# Estadísticas de la carga
 	total_registros = models.PositiveIntegerField(default=0)
@@ -335,43 +576,93 @@ class HistorialCarga(models.Model):
 	registros_invalidos = models.PositiveIntegerField(default=0)
 	
 	# Estado y resultado
-	estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='EXITOSO')
-	reemplazo = models.BooleanField(default=False)  # Si se reemplazó un corte existente
+	estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='EN_PROCESO', db_index=True)
+	reemplazo = models.BooleanField(default=False)
 	
 	# Detalles adicionales
 	observaciones = models.TextField(blank=True)
-	tiempo_procesamiento = models.FloatField(null=True, blank=True)  # En segundos
+	errores = models.JSONField(default=list, blank=True)  # Lista de errores encontrados
+	tiempo_procesamiento = models.FloatField(null=True, blank=True, help_text="Tiempo en segundos")
 	
 	# Metadatos del sistema
 	ip_address = models.GenericIPAddressField(null=True, blank=True)
 
 	class Meta:
 		ordering = ["-fecha_carga"]
+		verbose_name = 'Historial de Carga'
+		verbose_name_plural = 'Historial de Cargas'
 		indexes = [
 			models.Index(fields=['tipo_carga', '-fecha_carga']),
 			models.Index(fields=['usuario', '-fecha_carga']),
 			models.Index(fields=['periodo_anio', 'periodo_mes']),
+			models.Index(fields=['estado', '-fecha_carga']),
 		]
-		verbose_name = 'Historial de Carga'
-		verbose_name_plural = 'Historial de Cargas'
 
 	@property
 	def periodo_str(self):
 		"""Retorna el periodo en formato legible (ej: 'Octubre 2024')"""
 		if self.periodo_mes and self.periodo_anio:
-			meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-					 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+			meses = [
+				'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+				'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+			]
 			if 1 <= self.periodo_mes <= 12:
 				return f"{meses[self.periodo_mes - 1]} {self.periodo_anio}"
 			return f"{self.periodo_anio}-{self.periodo_mes:02d}"
 		return "N/A"
 
 	@property
-	def tasa_exito(self):
+	def tasa_exito(self) -> float:
 		"""Calcula el porcentaje de registros válidos"""
 		if self.total_registros == 0:
-			return 0
+			return 0.0
 		return round(((self.registros_creados + self.registros_actualizados) / self.total_registros) * 100, 2)
+
+	@property
+	def registros_exitosos(self) -> int:
+		"""Retorna el total de registros procesados exitosamente."""
+		return self.registros_creados + self.registros_actualizados
 
 	def __str__(self) -> str:
 		return f"HistorialCarga({self.get_tipo_carga_display()} - {self.usuario} - {self.fecha_carga:%Y-%m-%d %H:%M})"
+
+
+# =============================================================================
+# MODELO DE USUARIOS
+# =============================================================================
+
+class Usuario(models.Model):
+	"""
+	Modelo de usuarios del sistema para autenticación y gestión.
+	"""
+	username = models.CharField(max_length=150, unique=True, db_index=True)
+	password_hash = models.CharField(max_length=255)
+	nombre_completo = models.CharField(max_length=255)
+	email = models.EmailField(blank=True)
+	es_admin = models.BooleanField(default=False)
+	activo = models.BooleanField(default=True)
+	
+	# Metadatos
+	ultimo_acceso = models.DateTimeField(null=True, blank=True)
+	creado_el = models.DateTimeField(default=timezone.now, editable=False)
+	modificado_el = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ['username']
+		verbose_name = 'Usuario'
+		verbose_name_plural = 'Usuarios'
+		indexes = [
+			models.Index(fields=['username']),
+			models.Index(fields=['activo']),
+		]
+
+	def set_password(self, raw_password: str):
+		"""Establece la contraseña del usuario (hasheada)."""
+		self.password_hash = make_password(raw_password)
+
+	def check_password(self, raw_password: str) -> bool:
+		"""Verifica si la contraseña proporcionada es correcta."""
+		return check_password(raw_password, self.password_hash)
+
+	def __str__(self) -> str:
+		return f"{self.nombre_completo} ({self.username})"

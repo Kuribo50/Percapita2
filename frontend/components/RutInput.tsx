@@ -74,7 +74,7 @@ export default function RutInput({
         placeholder={placeholder}
         disabled={disabled}
         required={required}
-        maxLength={10}
+  maxLength={10}
         className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none ${
           error && showError ? 'border-red-500' : 'border-gray-300'
         } ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
@@ -82,9 +82,7 @@ export default function RutInput({
       {error && showError && touched && (
         <p className="mt-1 text-sm text-red-600">{error}</p>
       )}
-      <p className="mt-1 text-xs text-gray-500">
-        Formato: 12345678-9 (máximo 9 dígitos)
-      </p>
+      <p className="mt-1 text-xs text-gray-500">Formato: 12345678-9</p>
     </div>
   );
 }

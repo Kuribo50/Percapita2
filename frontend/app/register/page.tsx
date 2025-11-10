@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, UserPlus, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { handleRutInput, formatRut } from '@/lib/utils';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function RegisterPage() {
       } else {
         setError(result.message || 'Error al registrar usuario');
       }
-    } catch (err) {
+    } catch {
       setError('Error al conectar con el servidor');
     } finally {
       setLoading(false);
@@ -65,7 +66,7 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 px-4">
+  <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-green-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 px-4">
         <Card className="w-full max-w-md shadow-2xl border-0">
           <CardContent className="pt-6 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
@@ -87,7 +88,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 px-4 py-8">
+  <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 px-4 py-8">
       <div className="w-full max-w-2xl">
         {/* Back Button */}
         <Link 
@@ -100,7 +101,7 @@ export default function RegisterPage() {
 
         {/* Logo/Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 mb-4 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-purple-500 to-blue-600 mb-4 shadow-lg">
             <UserPlus className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -124,7 +125,7 @@ export default function RegisterPage() {
               {/* Error Message */}
               {error && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
                   <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                 </div>
               )}
@@ -137,9 +138,12 @@ export default function RegisterPage() {
                   <Input
                     id="rut"
                     type="text"
-                    placeholder="12.345.678-9"
+                    placeholder="12345678-9"
                     value={formData.rut}
-                    onChange={(e) => setFormData({...formData, rut: e.target.value})}
+                    onChange={(e) => {
+                      const clean = handleRutInput(e.target.value);
+                      setFormData({ ...formData, rut: formatRut(clean) });
+                    }}
                     required
                     className="h-11"
                   />
@@ -256,7 +260,7 @@ export default function RegisterPage() {
               {/* Submit Button */}
               <Button 
                 type="submit" 
-                className="w-full h-11 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                className="w-full h-11 bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                 disabled={loading}
               >
                 {loading ? (
