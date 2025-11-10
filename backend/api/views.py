@@ -114,24 +114,41 @@ def _is_validated_corte(aceptado_rechazado: str, motivo: str) -> bool:
     """
     Determina si un registro del corte FONASA está validado.
     
+    Valores posibles en aceptadoRechazado:
+    - "ACEPTADO" -> VALIDADO
+    - "RECHAZADO" -> NO VALIDADO
+    - "INGRESO RECHAZO SIMULTÁNEO" -> NO VALIDADO (es un rechazo)
+    - Vacío o None -> Revisar motivo
+    
     Lógica:
-    1. Si aceptadoRechazado contiene "RECHAZADO" -> NO validado
-    2. Si aceptadoRechazado contiene "ACEPTADO" o "MANTIENE" -> SÍ validado
+    1. Si aceptadoRechazado == "ACEPTADO" -> SÍ validado
+    2. Si aceptadoRechazado contiene "RECHAZADO" o "RECHAZO" -> NO validado
     3. Si el motivo está en NON_VALIDATED_MOTIVOS -> NO validado
-    4. Por defecto -> SÍ validado
+    4. Si el motivo contiene "FALLECIDO" -> NO validado (caso especial)
+    5. Por defecto -> SÍ validado
     """
-    aceptado_upper = aceptado_rechazado.upper().strip()
-    motivo_norm = normalize_motivo(motivo)
+    if not aceptado_rechazado:
+        aceptado_upper = ""
+    else:
+        aceptado_upper = str(aceptado_rechazado).upper().strip()
     
-    # Prioridad 1: Revisar aceptadoRechazado
-    if "RECHAZADO" in aceptado_upper or "RECHAZA" in aceptado_upper:
-        return False
+    motivo_norm = normalize_motivo(motivo or "")
     
-    if "ACEPTADO" in aceptado_upper or "ACEPTA" in aceptado_upper or "MANTIENE" in aceptado_upper:
+    # Prioridad 1: Revisar aceptadoRechazado exactamente
+    # ACEPTADO -> Validado
+    if aceptado_upper == "ACEPTADO":
         return True
+    
+    # RECHAZADO o INGRESO RECHAZO SIMULTÁNEO -> No validado
+    if "RECHAZADO" in aceptado_upper or "RECHAZO" in aceptado_upper:
+        return False
     
     # Prioridad 2: Revisar motivo normalizado
     if motivo_norm in NON_VALIDATED_MOTIVOS:
+        return False
+    
+    # Caso especial: fallecidos no están validados
+    if "FALLECIDO" in motivo_norm:
         return False
     
     # Por defecto, si no hay indicación clara, se considera validado
@@ -406,19 +423,22 @@ def upload_corte_fonasa(request):
         # Calcular estadísticas con la nueva lógica
         total_count = queryset.count()
         
-        # Filtro mejorado: primero revisar aceptadoRechazado, luego motivo
-        # RECHAZADOS: contiene "RECHAZADO" en aceptadoRechazado O motivo en NON_VALIDATED_MOTIVOS
+        # Filtro mejorado basado en los 3 valores posibles:
+        # NO VALIDADOS: 
+        #   - aceptadoRechazado = "RECHAZADO"
+        #   - aceptadoRechazado = "INGRESO RECHAZO SIMULTÁNEO" (contiene "RECHAZO")
+        #   - O motivo en NON_VALIDATED_MOTIVOS
+        #   - O motivo contiene "FALLECIDO"
         non_validated_filter = (
             Q(aceptado_rechazado__icontains="RECHAZADO") | 
-            Q(aceptado_rechazado__icontains="RECHAZA") |
-            Q(motivo_normalizado__in=NON_VALIDATED_MOTIVOS)
+            Q(aceptado_rechazado__icontains="RECHAZO") |
+            Q(motivo_normalizado__in=NON_VALIDATED_MOTIVOS) |
+            Q(motivo_normalizado__icontains="FALLECIDO")
         )
         
-        # VALIDADOS: contiene "ACEPTADO" o "MANTIENE" en aceptadoRechazado Y NO está rechazado
+        # VALIDADOS: aceptadoRechazado = "ACEPTADO" Y NO está en los rechazados
         validated_filter = (
-            (Q(aceptado_rechazado__icontains="ACEPTADO") | 
-             Q(aceptado_rechazado__icontains="ACEPTA") | 
-             Q(aceptado_rechazado__icontains="MANTIENE")) & 
+            Q(aceptado_rechazado__iexact="ACEPTADO") & 
             ~non_validated_filter
         )
 
