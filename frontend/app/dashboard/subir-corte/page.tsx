@@ -88,9 +88,9 @@ const getEstadoCargaBadge = (estadoCarga: string) => {
 };
 
 const formatFechaCorte = (
-  fechaCorte: string | undefined,
-  periodoStr: string,
-  tipoCarga: string
+  fechaCorte?: string,
+  periodoStr?: string,
+  tipoCarga?: string
 ) => {
   if (tipoCarga === "HP_TRAKCARE") {
     return "Histórico";

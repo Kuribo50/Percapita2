@@ -110,6 +110,34 @@ NON_VALIDATED_MOTIVOS = {
 }
 
 
+def _is_validated_corte(aceptado_rechazado: str, motivo: str) -> bool:
+    """
+    Determina si un registro del corte FONASA está validado.
+    
+    Lógica:
+    1. Si aceptadoRechazado contiene "RECHAZADO" -> NO validado
+    2. Si aceptadoRechazado contiene "ACEPTADO" o "MANTIENE" -> SÍ validado
+    3. Si el motivo está en NON_VALIDATED_MOTIVOS -> NO validado
+    4. Por defecto -> SÍ validado
+    """
+    aceptado_upper = aceptado_rechazado.upper().strip()
+    motivo_norm = normalize_motivo(motivo)
+    
+    # Prioridad 1: Revisar aceptadoRechazado
+    if "RECHAZADO" in aceptado_upper or "RECHAZA" in aceptado_upper:
+        return False
+    
+    if "ACEPTADO" in aceptado_upper or "ACEPTA" in aceptado_upper or "MANTIENE" in aceptado_upper:
+        return True
+    
+    # Prioridad 2: Revisar motivo normalizado
+    if motivo_norm in NON_VALIDATED_MOTIVOS:
+        return False
+    
+    # Por defecto, si no hay indicación clara, se considera validado
+    return True
+
+
 def _format_month_label(year: int, month: int) -> str:
     if 1 <= month <= 12:
         return f"{MONTH_NAMES_ES[month - 1]} {year}"
@@ -192,6 +220,7 @@ def _build_corte_payload(instance: CorteFonasa) -> Dict[str, str | None]:
         "comunaActual": instance.comuna_actual,
         "aceptadoRechazado": instance.aceptado_rechazado,
         "motivo": instance.motivo,
+        "isValidated": _is_validated_corte(instance.aceptado_rechazado, instance.motivo),
     }
 
 
@@ -294,11 +323,15 @@ def _validar_nuevos_usuarios_con_corte():
                 fecha_corte=fecha_corte
             )
 			
+            # Usar la nueva lógica de validación
             motivo_normalizado = (registro_corte.motivo_normalizado or '').upper()
-            if motivo_normalizado == 'RECHAZADO FALLECIDO' or 'FALLECIDO' in motivo_normalizado:
+            
+            # Primero verificar si está fallecido (prioridad máxima)
+            if 'FALLECIDO' in motivo_normalizado:
                 usuario.estado = 'FALLECIDO'
                 fallecidos += 1
-            elif motivo_normalizado in NON_VALIDATED_MOTIVOS:
+            # Luego usar la función de validación que revisa aceptadoRechazado primero
+            elif not _is_validated_corte(registro_corte.aceptado_rechazado, registro_corte.motivo):
                 usuario.estado = 'NO_VALIDADO'
                 no_validados += 1
             else:
@@ -370,10 +403,25 @@ def upload_corte_fonasa(request):
             if centros_list:
                 queryset = queryset.filter(nombre_centro__in=centros_list)
 
-        non_validated_filter = Q(motivo_normalizado__in=NON_VALIDATED_MOTIVOS)
-        validated_filter = ~non_validated_filter
-
+        # Calcular estadísticas con la nueva lógica
         total_count = queryset.count()
+        
+        # Filtro mejorado: primero revisar aceptadoRechazado, luego motivo
+        # RECHAZADOS: contiene "RECHAZADO" en aceptadoRechazado O motivo en NON_VALIDATED_MOTIVOS
+        non_validated_filter = (
+            Q(aceptado_rechazado__icontains="RECHAZADO") | 
+            Q(aceptado_rechazado__icontains="RECHAZA") |
+            Q(motivo_normalizado__in=NON_VALIDATED_MOTIVOS)
+        )
+        
+        # VALIDADOS: contiene "ACEPTADO" o "MANTIENE" en aceptadoRechazado Y NO está rechazado
+        validated_filter = (
+            (Q(aceptado_rechazado__icontains="ACEPTADO") | 
+             Q(aceptado_rechazado__icontains="ACEPTA") | 
+             Q(aceptado_rechazado__icontains="MANTIENE")) & 
+            ~non_validated_filter
+        )
+
         validated_count = queryset.filter(validated_filter).count()
         non_validated_count = queryset.filter(non_validated_filter).count()
 
@@ -534,7 +582,6 @@ def upload_corte_fonasa(request):
                 "fecha_nacimiento": _parse_date(record.get("fechaNacimiento")),
                 "genero": _safe_str(record.get("genero")),
                 "tramo": _safe_str(record.get("tramo")),
-                "cod_genero": _safe_str(record.get("codGenero")),
                 "nombre_centro": _safe_str(record.get("nombreCentro")),
                 "centro_de_procedencia": _safe_str(record.get("centroDeProcedencia")),
                 "comuna_de_procedencia": _safe_str(record.get("comunaDeProcedencia")),
@@ -560,13 +607,16 @@ def upload_corte_fonasa(request):
         if months_to_replace or created > 0:
             _validar_nuevos_usuarios_con_corte()
 
-    totals_queryset = CorteFonasa.objects.all()
-    non_validated_filter = Q(motivo_normalizado__in=NON_VALIDATED_MOTIVOS)
-    validated_filter = ~non_validated_filter
-
-    total_records = totals_queryset.count()
-    total_validated = totals_queryset.filter(validated_filter).count()
-    total_non_validated = totals_queryset.filter(non_validated_filter).count()
+    # Calcular estadísticas usando la nueva lógica de validación
+    total_records = CorteFonasa.objects.count()
+    total_validated = 0
+    total_non_validated = 0
+    
+    for corte in CorteFonasa.objects.all().iterator():
+        if _is_validated_corte(corte.aceptado_rechazado, corte.motivo):
+            total_validated += 1
+        else:
+            total_non_validated += 1
 
     return Response(
         {

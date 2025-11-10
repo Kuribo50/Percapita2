@@ -17,8 +17,7 @@ urlpatterns = [
     path("nuevos-usuarios/estadisticas/", views.nuevos_usuarios_estadisticas, name="nuevos-usuarios-estadisticas"),
     path("nuevos-usuarios/exportar/", views.exportar_nuevos_usuarios, name="exportar-nuevos-usuarios"),
     path("nuevos-usuarios/historial/", views.nuevos_usuarios_historial, name="nuevos-usuarios-historial"),
-    path("nuevos-usuarios/historial/", views.nuevos_usuarios_historial, name="nuevos-usuarios-historial"),
-    
+
     # Validaciones
     path("validaciones/", views.validaciones_list, name="validaciones-list"),
     path("validaciones/<int:pk>/", views.validacion_detail, name="validacion-detail"),

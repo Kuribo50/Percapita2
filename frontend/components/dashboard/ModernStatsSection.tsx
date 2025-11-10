@@ -1,6 +1,6 @@
 "use client";
 
-import { ModernStatCard } from "./ModernStatCard";
+import { StatCard } from "@/components/layout/StatCard";
 import {
   UserPlus,
   CheckCircle2,
@@ -42,7 +42,8 @@ export function ModernStatsSection({
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-      <ModernStatCard
+      <StatCard
+        variant="modern"
         title="Nuevos Este Mes"
         value={stats.newThisMonth}
         icon={UserPlus}
@@ -55,7 +56,8 @@ export function ModernStatsSection({
         }}
       />
 
-      <ModernStatCard
+      <StatCard
+        variant="modern"
         title="Validados"
         value={stats.validated}
         icon={CheckCircle2}
@@ -64,7 +66,8 @@ export function ModernStatsSection({
         colorScheme="green"
       />
 
-      <ModernStatCard
+      <StatCard
+        variant="modern"
         title="No Validados"
         value={stats.nonValidated}
         icon={XCircle}
@@ -73,7 +76,8 @@ export function ModernStatsSection({
         colorScheme="red"
       />
 
-      <ModernStatCard
+      <StatCard
+        variant="modern"
         title="Total de Cortes"
         value={stats.totalCortes}
         icon={Clock}
@@ -82,7 +86,8 @@ export function ModernStatsSection({
         colorScheme="amber"
       />
 
-      <ModernStatCard
+      <StatCard
+        variant="modern"
         title="A Revisar"
         value={stats.toReview}
         icon={AlertCircle}
