@@ -612,16 +612,13 @@ def upload_corte_fonasa(request):
                 "motivo_normalizado": normalize_motivo(motivo_value),
             }
 
-            _, created_flag = CorteFonasa.objects.update_or_create(
+            # Crear el registro directamente (permite duplicados de RUN en el mismo mes)
+            CorteFonasa.objects.create(
                 run=run_clean,
                 fecha_corte=fecha_corte,
-                defaults=defaults,
+                **defaults,
             )
-
-            if created_flag:
-                created += 1
-            else:
-                updated += 1
+            created += 1
 
         # Validación automática de nuevos usuarios cuando se sube un corte
         if months_to_replace or created > 0:

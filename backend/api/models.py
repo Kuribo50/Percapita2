@@ -221,7 +221,7 @@ class CorteFonasa(models.Model):
 
 	class Meta:
 		ordering = ["-fecha_corte", "run"]
-		unique_together = ("run", "fecha_corte")
+		# Eliminado unique_together para permitir duplicados (un RUN puede aparecer múltiples veces en el mismo mes)
 		verbose_name = 'Corte FONASA'
 		verbose_name_plural = 'Cortes FONASA'
 		indexes = [

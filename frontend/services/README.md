@@ -1,4 +1,4 @@
-# Servicios de API - Frontend
+ABR# Servicios de API - Frontend
 
 Este directorio contiene todos los servicios centralizados para interactuar con la API del backend. Todos los servicios utilizan un cliente HTTP unificado con manejo de autenticación automático y gestión de errores.
 
@@ -32,10 +32,10 @@ Si no se configura, usa por defecto: `http://localhost:8000/api`
 
 ```typescript
 // Importar servicio específico
-import { authService, usuariosService, cortesService } from '@/services';
+import { authService, usuariosService, cortesService } from "@/services";
 
 // Importar tipos
-import type { NuevoUsuario, ApiResponse } from '@/services';
+import type { NuevoUsuario, ApiResponse } from "@/services";
 ```
 
 ### Respuestas de API
@@ -60,9 +60,9 @@ interface ApiResponse<T> {
 const response = await usuariosService.getNuevosUsuarios({ page: 1 });
 
 if (response.success) {
-  console.log('Datos:', response.data);
+  console.log("Datos:", response.data);
 } else {
-  console.error('Error:', response.error?.message);
+  console.error("Error:", response.error?.message);
 }
 ```
 
@@ -71,6 +71,7 @@ if (response.success) {
 ### 1. ApiClient (`api.ts`)
 
 Cliente HTTP base con métodos:
+
 - `get<T>(endpoint, options?)`
 - `post<T>(endpoint, body?, options?)`
 - `put<T>(endpoint, body?, options?)`
@@ -79,6 +80,7 @@ Cliente HTTP base con métodos:
 - `uploadFile<T>(endpoint, file, additionalData?)`
 
 **Características:**
+
 - Añade automáticamente el token de autenticación desde localStorage
 - Manejo unificado de errores
 - Soporte para uploads de archivos
@@ -89,16 +91,16 @@ Cliente HTTP base con métodos:
 
 ```typescript
 // Login
-await authService.login({ rut: '12345678-9', password: '***' });
+await authService.login({ rut: "12345678-9", password: "***" });
 
 // Registro
 await authService.register({
-  rut: '12345678-9',
-  nombre: 'Juan',
-  apellido: 'Pérez',
-  email: 'juan@example.com',
-  establecimiento: 'Hospital',
-  password: '***'
+  rut: "12345678-9",
+  nombre: "Juan",
+  apellido: "Pérez",
+  email: "juan@example.com",
+  establecimiento: "Hospital",
+  password: "***",
 });
 
 // Logout
@@ -133,7 +135,7 @@ await usuariosService.getNuevosUsuarios({
   page_size: 20,
   revisado: false,
   centro_inscripcion: 1,
-  search: 'juan'
+  search: "juan",
 });
 
 // Obtener usuario por ID
@@ -141,14 +143,14 @@ await usuariosService.getUsuarioById(123);
 
 // Crear usuario
 await usuariosService.createUsuario({
-  run: '12345678-9',
-  nombres: 'Juan',
-  apellido_paterno: 'Pérez',
+  run: "12345678-9",
+  nombres: "Juan",
+  apellido_paterno: "Pérez",
   // ... más campos
 });
 
 // Actualizar usuario
-await usuariosService.updateUsuario(123, { telefono: '912345678' });
+await usuariosService.updateUsuario(123, { telefono: "912345678" });
 
 // Eliminar usuario
 await usuariosService.deleteUsuario(123);
@@ -166,9 +168,9 @@ await usuariosService.getEstadisticas();
 const response = await usuariosService.exportarUsuarios({ revisado: true });
 if (response.success && response.data) {
   const url = URL.createObjectURL(response.data);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
-  a.download = 'usuarios.xlsx';
+  a.download = "usuarios.xlsx";
   a.click();
 }
 
@@ -187,9 +189,9 @@ Gestión de cortes FONASA.
 await cortesService.getCortes({
   page: 1,
   page_size: 20,
-  fecha_corte: '2024-01',
+  fecha_corte: "2024-01",
   centro_salud: 1,
-  motivo_normalizado: 'cambio_domicilio'
+  motivo_normalizado: "cambio_domicilio",
 });
 
 // Obtener corte por ID
@@ -199,7 +201,7 @@ await cortesService.getCorteById(123);
 await cortesService.uploadCorte(file);
 
 // Buscar por RUN
-await cortesService.buscarPorRun('12345678-9');
+await cortesService.buscarPorRun("12345678-9");
 ```
 
 ### 5. Catálogos Service (`catalogos.service.ts`)
@@ -212,7 +214,14 @@ Gestión completa CRUD de todos los catálogos del sistema.
 // Obtener todos los catálogos en una sola llamada
 const response = await catalogosService.getAllCatalogos();
 if (response.success) {
-  const { etnias, nacionalidades, sectores, subsectores, establecimientos, centros_salud } = response.data;
+  const {
+    etnias,
+    nacionalidades,
+    sectores,
+    subsectores,
+    establecimientos,
+    centros_salud,
+  } = response.data;
 }
 ```
 
@@ -227,14 +236,14 @@ await catalogosService.getEtniaById(1);
 
 // Crear
 await catalogosService.createEtnia({
-  nombre: 'Mapuche',
-  codigo: 'MAP',
+  nombre: "Mapuche",
+  codigo: "MAP",
   activo: true,
-  orden: 1
+  orden: 1,
 });
 
 // Actualizar
-await catalogosService.updateEtnia(1, { nombre: 'Mapuche Actualizado' });
+await catalogosService.updateEtnia(1, { nombre: "Mapuche Actualizado" });
 
 // Eliminar
 await catalogosService.deleteEtnia(1);
@@ -245,8 +254,8 @@ await catalogosService.deleteEtnia(1);
 ```typescript
 await catalogosService.getNacionalidades();
 await catalogosService.getNacionalidadById(1);
-await catalogosService.createNacionalidad({ nombre: 'Chilena', codigo: 'CL' });
-await catalogosService.updateNacionalidad(1, { nombre: 'Chile' });
+await catalogosService.createNacionalidad({ nombre: "Chilena", codigo: "CL" });
+await catalogosService.updateNacionalidad(1, { nombre: "Chile" });
 await catalogosService.deleteNacionalidad(1);
 ```
 
@@ -255,8 +264,11 @@ await catalogosService.deleteNacionalidad(1);
 ```typescript
 await catalogosService.getSectores();
 await catalogosService.getSectorById(1);
-await catalogosService.createSector({ nombre: 'Sector Norte', color: '#FF0000' });
-await catalogosService.updateSector(1, { nombre: 'Sector Norte Actualizado' });
+await catalogosService.createSector({
+  nombre: "Sector Norte",
+  color: "#FF0000",
+});
+await catalogosService.updateSector(1, { nombre: "Sector Norte Actualizado" });
 await catalogosService.deleteSector(1);
 ```
 
@@ -265,8 +277,8 @@ await catalogosService.deleteSector(1);
 ```typescript
 await catalogosService.getSubsectores();
 await catalogosService.getSubsectorById(1);
-await catalogosService.createSubsector({ nombre: 'Subsector A', sector: 1 });
-await catalogosService.updateSubsector(1, { nombre: 'Subsector A Modificado' });
+await catalogosService.createSubsector({ nombre: "Subsector A", sector: 1 });
+await catalogosService.updateSubsector(1, { nombre: "Subsector A Modificado" });
 await catalogosService.deleteSubsector(1);
 ```
 
@@ -276,12 +288,12 @@ await catalogosService.deleteSubsector(1);
 await catalogosService.getEstablecimientos();
 await catalogosService.getEstablecimientoById(1);
 await catalogosService.createEstablecimiento({
-  nombre: 'Hospital Regional',
-  codigo: 'HR01',
-  tipo: 'hospital',
-  direccion: 'Calle Principal 123'
+  nombre: "Hospital Regional",
+  codigo: "HR01",
+  tipo: "hospital",
+  direccion: "Calle Principal 123",
 });
-await catalogosService.updateEstablecimiento(1, { telefono: '123456789' });
+await catalogosService.updateEstablecimiento(1, { telefono: "123456789" });
 await catalogosService.deleteEstablecimiento(1);
 ```
 
@@ -291,11 +303,11 @@ await catalogosService.deleteEstablecimiento(1);
 await catalogosService.getCentrosSalud();
 await catalogosService.getCentroSaludById(1);
 await catalogosService.createCentroSalud({
-  nombre: 'CESFAM Centro',
-  codigo: 'CS01',
-  establecimiento: 1
+  nombre: "CESFAM Centro",
+  codigo: "CS01",
+  establecimiento: 1,
 });
-await catalogosService.updateCentroSalud(1, { tipo: 'CESFAM' });
+await catalogosService.updateCentroSalud(1, { tipo: "CESFAM" });
 await catalogosService.deleteCentroSalud(1);
 
 // Obtener centros disponibles (simplificado)
@@ -313,10 +325,10 @@ Gestión del historial de cargas de archivos.
 await historialService.getHistorial({
   page: 1,
   page_size: 20,
-  tipo: 'usuarios', // o 'cortes'
-  estado: 'completado',
-  fecha_desde: '2024-01-01',
-  fecha_hasta: '2024-12-31'
+  tipo: "usuarios", // o 'cortes'
+  estado: "completado",
+  fecha_desde: "2024-01-01",
+  fecha_hasta: "2024-12-31",
 });
 
 // Obtener por ID
@@ -336,7 +348,7 @@ async function cargarUsuarios() {
 
   if (response.success) {
     // Manejar éxito
-    console.log('Usuarios:', response.data);
+    console.log("Usuarios:", response.data);
   } else {
     // Manejar error
     const error = response.error;
@@ -361,8 +373,8 @@ async function cargarUsuarios() {
 ### Uso con React
 
 ```typescript
-import { useState, useEffect } from 'react';
-import { usuariosService, type NuevoUsuario } from '@/services';
+import { useState, useEffect } from "react";
+import { usuariosService, type NuevoUsuario } from "@/services";
 
 function UsuariosComponent() {
   const [usuarios, setUsuarios] = useState<NuevoUsuario[]>([]);
@@ -377,7 +389,7 @@ function UsuariosComponent() {
       if (response.success) {
         setUsuarios(response.data?.results || []);
       } else {
-        setError(response.error?.message || 'Error desconocido');
+        setError(response.error?.message || "Error desconocido");
       }
 
       setLoading(false);
@@ -391,8 +403,10 @@ function UsuariosComponent() {
 
   return (
     <ul>
-      {usuarios.map(u => (
-        <li key={u.id}>{u.nombres} {u.apellido_paterno}</li>
+      {usuarios.map((u) => (
+        <li key={u.id}>
+          {u.nombres} {u.apellido_paterno}
+        </li>
       ))}
     </ul>
   );
@@ -445,7 +459,7 @@ import type {
   // Historial
   HistorialCarga,
   HistorialCargaListResponse,
-} from '@/services';
+} from "@/services";
 ```
 
 ## Buenas Prácticas
@@ -460,8 +474,12 @@ import type {
 ## Ejemplo de Custom Hook
 
 ```typescript
-import { useState, useEffect } from 'react';
-import { usuariosService, type NuevosUsuariosListResponse, type ApiResponse } from '@/services';
+import { useState, useEffect } from "react";
+import {
+  usuariosService,
+  type NuevosUsuariosListResponse,
+  type ApiResponse,
+} from "@/services";
 
 export function useNuevosUsuarios(page: number = 1) {
   const [data, setData] = useState<NuevosUsuariosListResponse | null>(null);
@@ -478,7 +496,7 @@ export function useNuevosUsuarios(page: number = 1) {
       if (response.success) {
         setData(response.data || null);
       } else {
-        setError(response.error?.message || 'Error desconocido');
+        setError(response.error?.message || "Error desconocido");
       }
 
       setLoading(false);
