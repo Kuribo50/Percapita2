@@ -563,7 +563,6 @@ def upload_corte_fonasa(request):
     serializer.is_valid(raise_exception=True)
 
     created = 0
-    updated = 0
     skipped: List[Dict[str, str]] = []
 
     replace_mode = request.query_params.get("replace", "").lower() in {"1", "true", "yes"}
@@ -638,7 +637,6 @@ def upload_corte_fonasa(request):
     return Response(
         {
             "created": created,
-            "updated": updated,
             "invalid": len(skipped),
             "invalid_rows": skipped[:20],
             "total": total_records,
