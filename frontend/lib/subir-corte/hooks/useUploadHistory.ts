@@ -31,7 +31,18 @@ export function useUploadHistory() {
         url.searchParams.set("tipo", "HP_TRAKCARE");
       }
 
-      const response = await fetch(url.toString());
+      // Obtener token de autenticación
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("authToken")
+          : null;
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
       if (response.ok) {
         const data = await response.json();
         setUploadHistory(data);

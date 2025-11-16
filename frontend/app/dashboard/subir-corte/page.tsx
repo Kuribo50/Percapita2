@@ -325,9 +325,18 @@ export default function SubirCortePage() {
     try {
       const estado = registrosInvalidos > 0 ? "PARCIAL" : "EXITOSO";
 
+      // Obtener token de autenticación
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("authToken")
+          : null;
+
       const response = await fetch(`${API_BASE_URL}/api/historial-cargas/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           tipo_carga: tipoCarga,
           nombre_archivo: nombreArchivo,
@@ -709,9 +718,17 @@ export default function SubirCortePage() {
     };
 
     if (totalRows <= INITIAL_CHUNK_SIZE) {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("authToken")
+          : null;
+
       const response = await fetch(buildEndpointUrl(dataset, params), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ records: state.rows }),
       });
 
@@ -768,9 +785,17 @@ export default function SubirCortePage() {
         delete chunkParams.replace;
       }
 
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("authToken")
+          : null;
+
       const response = await fetch(buildEndpointUrl(dataset, chunkParams), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ records: task.rows }),
       });
 
