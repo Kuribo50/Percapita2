@@ -71,6 +71,9 @@ urlpatterns = [
     path("usuarios/", views.usuarios_list, name="usuarios-list"),
     path("usuarios/<int:pk>/", views.usuario_detail, name="usuario-detail"),
     path("usuarios/<int:pk>/cambiar-password/", views.cambiar_password, name="cambiar-password"),
+    path("usuarios/<int:pk>/restablecer-password/", views.restablecer_password, name="restablecer-password"),
+    path("usuarios/<int:pk>/asignar-centros/", views.asignar_centros, name="asignar-centros"),
+    path("usuarios/roles/", views.roles_disponibles, name="roles-disponibles"),
     
     # Búsqueda de Usuario
     path("buscar-usuario/", views.buscar_usuario, name="buscar-usuario"),

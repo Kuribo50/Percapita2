@@ -18,6 +18,13 @@ TODO: Completar división en:
 
 # Importar vistas ya refactorizadas
 from .busqueda import buscar_usuario, buscar_familia
+from .usuarios import (
+    usuarios_list,
+    usuario_detail,
+    restablecer_password,
+    asignar_centros,
+    roles_disponibles,
+)
 
 # Importar temporalmente el resto desde el archivo original
 # TODO: Dividir estas vistas en módulos separados
@@ -70,9 +77,7 @@ from ..views_old import (
     # Historial
     historial_cargas,
 
-    # Autenticación y Usuarios del Sistema
-    usuarios_list,
-    usuario_detail,
+    # Autenticación
     cambiar_password,
 )
 
@@ -130,8 +135,11 @@ __all__ = [
     # Historial
     'historial_cargas',
 
-    # Autenticación y Usuarios
+    # Autenticación y Usuarios del Sistema
     'usuarios_list',
     'usuario_detail',
+    'restablecer_password',
+    'asignar_centros',
+    'roles_disponibles',
     'cambiar_password',
 ]

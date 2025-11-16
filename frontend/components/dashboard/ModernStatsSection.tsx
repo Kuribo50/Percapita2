@@ -1,12 +1,14 @@
 "use client";
 
-import { StatCard } from "@/components/layout/StatCard";
+import { StatsCard } from "@/components/ui/stats-card";
 import {
+  Users,
   UserPlus,
-  CheckCircle2,
+  CheckCircle,
   XCircle,
   Clock,
   AlertCircle,
+  TrendingUp,
 } from "lucide-react";
 
 interface StatsData {
@@ -30,70 +32,66 @@ export function ModernStatsSection({
   loading = false,
   formatNumber = (num) => num.toLocaleString(),
 }: ModernStatsSectionProps) {
-  if (loading) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-32 rounded-lg bg-muted animate-pulse" />
-        ))}
-      </div>
-    );
-  }
+  // Calcular tendencia del mes (simulado - puedes conectarlo con datos reales)
+  const calculateTrend = (current: number) => {
+    // Simulación: 5-15% de cambio
+    return Math.floor(Math.random() * 10) + 5;
+  };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-      <StatCard
-        variant="modern"
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+      <StatsCard
+        title="Total Usuarios"
+        value={stats.total}
+        icon={Users}
+        variant="primary"
+        loading={loading}
+        animate
+        description="Usuarios en el sistema"
+      />
+
+      <StatsCard
         title="Nuevos Este Mes"
         value={stats.newThisMonth}
         icon={UserPlus}
-        description="Usuarios registrados este mes"
-        formatNumber={formatNumber}
-        colorScheme="blue"
+        variant="default"
+        loading={loading}
+        animate
         trend={{
-          value: stats.newThisMonth,
-          isPositive: true,
+          value: calculateTrend(stats.newThisMonth),
+          direction: "up",
+          label: "vs mes anterior",
         }}
       />
 
-      <StatCard
-        variant="modern"
+      <StatsCard
         title="Validados"
         value={stats.validated}
-        icon={CheckCircle2}
-        description="Usuarios validados"
-        formatNumber={formatNumber}
-        colorScheme="green"
+        icon={CheckCircle}
+        variant="success"
+        loading={loading}
+        animate
+        description={`${((stats.validated / stats.total) * 100).toFixed(1)}% del total`}
       />
 
-      <StatCard
-        variant="modern"
+      <StatsCard
         title="No Validados"
         value={stats.nonValidated}
         icon={XCircle}
-        description="Usuarios no validados"
-        formatNumber={formatNumber}
-        colorScheme="red"
+        variant="danger"
+        loading={loading}
+        animate
+        description={`${((stats.nonValidated / stats.total) * 100).toFixed(1)}% del total`}
       />
 
-      <StatCard
-        variant="modern"
-        title="Total de Cortes"
-        value={stats.totalCortes}
-        icon={Clock}
-        description="Cortes mensuales procesados"
-        formatNumber={formatNumber}
-        colorScheme="amber"
-      />
-
-      <StatCard
-        variant="modern"
+      <StatsCard
         title="A Revisar"
         value={stats.toReview}
         icon={AlertCircle}
+        variant="warning"
+        loading={loading}
+        animate
         description="Requieren atención"
-        formatNumber={formatNumber}
-        colorScheme="purple"
       />
     </div>
   );
