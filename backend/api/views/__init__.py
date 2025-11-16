@@ -18,6 +18,7 @@ TODO: Completar división en:
 
 # Importar vistas ya refactorizadas
 from .busqueda import buscar_usuario, buscar_familia
+from .busqueda_global import busqueda_global
 from .usuarios import (
     usuarios_list,
     usuario_detail,
@@ -96,6 +97,7 @@ __all__ = [
     # Búsqueda (refactorizado)
     'buscar_usuario',
     'buscar_familia',
+    'busqueda_global',
 
     # Cortes FONASA
     'upload_corte_fonasa',

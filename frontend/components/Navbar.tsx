@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSelectedNuevoUsuario } from "@/contexts/SelectedNuevoUsuarioContext";
 import { NotificationCenter } from "@/components/notificaciones/NotificationCenter";
+import { GlobalSearchDialog } from "@/components/busqueda/GlobalSearchDialog";
 
 export interface NavbarProps {
   onToggleSidebar: () => void;
@@ -68,7 +69,6 @@ export default function Navbar({
       document.documentElement.classList.contains("dark")
   );
   const [isCommandOpen, setIsCommandOpen] = useState(false);
-  const [query, setQuery] = useState("");
 
   const toggleTheme = useCallback(() => {
     const root = document.documentElement;
@@ -185,23 +185,6 @@ export default function Navbar({
   }, [user]);
 
   const displayRole = user?.rol ?? "—";
-
-  const filteredItems = useMemo(() => {
-    if (!query) return NAV_ITEMS;
-    const normalized = query.toLowerCase();
-    return NAV_ITEMS.filter((item) =>
-      `${item.section} ${item.title}`.toLowerCase().includes(normalized)
-    );
-  }, [query]);
-
-  const handleSelect = useCallback(
-    (href: string) => {
-      setIsCommandOpen(false);
-      setQuery("");
-      router.push(href);
-    },
-    [router]
-  );
 
   const ActiveIcon = currentItem?.icon ?? NAV_ITEMS[0].icon;
 
@@ -353,69 +336,10 @@ export default function Navbar({
         </div>
       </div>
 
-      <Dialog open={isCommandOpen} onOpenChange={setIsCommandOpen}>
-        <DialogContent className="max-w-lg gap-4">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Command className="h-4 w-4" />
-              Ir a…
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Busca secciones, páginas o acciones"
-                className="pl-9"
-                autoFocus
-              />
-            </div>
-            <ScrollArea className="max-h-80 rounded-lg border border-border/60 bg-muted/40">
-              <div className="divide-y divide-border/60">
-                {filteredItems.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-                    No encontramos resultados. Intenta con otro término.
-                  </p>
-                ) : (
-                  filteredItems.map((item) => {
-                    const ActiveIcon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-background"
-                        onClick={() => handleSelect(item.href)}
-                      >
-                        <span className="grid h-9 w-9 place-items-center rounded-xl bg-background">
-                          <ActiveIcon className="h-5 w-5 text-primary" />
-                        </span>
-                        <span className="flex-1">
-                          <p className="text-sm font-semibold text-foreground">
-                            {item.title}
-                          </p>
-                          {item.description && (
-                            <span className="text-xs text-muted-foreground">
-                              {item.description}
-                            </span>
-                          )}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] uppercase"
-                        >
-                          {item.section}
-                        </Badge>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <GlobalSearchDialog
+        open={isCommandOpen}
+        onOpenChange={setIsCommandOpen}
+      />
     </nav>
   );
 }

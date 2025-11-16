@@ -881,3 +881,63 @@ export interface NotificacionesResponse {
 export interface NotificacionesCount {
   count: number;
 }
+
+// =============================================================================
+// BÚSQUEDA GLOBAL
+// =============================================================================
+
+/**
+ * Tipos de resultado de búsqueda
+ */
+export type TipoResultadoBusqueda =
+  | "usuario_sistema"
+  | "nuevo_usuario"
+  | "corte_fonasa"
+  | "hp_trakcare"
+  | "establecimiento"
+  | "log";
+
+/**
+ * Iconos para resultados de búsqueda
+ */
+export type IconoBusqueda =
+  | "user-cog"
+  | "user-plus"
+  | "file-text"
+  | "database"
+  | "building"
+  | "activity";
+
+/**
+ * Resultado individual de búsqueda
+ */
+export interface ResultadoBusqueda {
+  id: number;
+  tipo: TipoResultadoBusqueda;
+  titulo: string;
+  subtitulo: string;
+  url: string;
+  icono: IconoBusqueda;
+  metadata: Record<string, any>;
+}
+
+/**
+ * Resultados agrupados por categoría
+ */
+export interface ResultadosBusquedaAgrupados {
+  usuarios_sistema?: ResultadoBusqueda[];
+  nuevos_usuarios?: ResultadoBusqueda[];
+  cortes_fonasa?: ResultadoBusqueda[];
+  hp_trakcare?: ResultadoBusqueda[];
+  establecimientos?: ResultadoBusqueda[];
+  logs?: ResultadoBusqueda[];
+}
+
+/**
+ * Respuesta de búsqueda global
+ */
+export interface BusquedaGlobalResponse {
+  query: string;
+  total_results: number;
+  results: ResultadosBusquedaAgrupados;
+}

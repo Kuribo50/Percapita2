@@ -78,6 +78,7 @@ urlpatterns = [
     # Búsqueda de Usuario
     path("buscar-usuario/", views.buscar_usuario, name="buscar-usuario"),
     path("buscar-familia/", views.buscar_familia, name="buscar-familia"),
+    path("busqueda-global/", views.busqueda_global, name="busqueda-global"),
 
     # Auditoría y Logs
     path("logs/", views.logs_list, name="logs-list"),
