@@ -36,6 +36,11 @@ from .auditoria import (
     acciones_disponibles,
     modulos_disponibles,
 )
+from .reportes import (
+    reporte_estadisticas_pdf,
+    reporte_usuarios_pdf,
+    reporte_logs_pdf,
+)
 
 # Importar temporalmente el resto desde el archivo original
 # TODO: Dividir estas vistas en módulos separados
@@ -164,4 +169,9 @@ __all__ = [
     'notificaciones_no_leidas_count',
     'acciones_disponibles',
     'modulos_disponibles',
+    
+    # Reportes PDF
+    'reporte_estadisticas_pdf',
+    'reporte_usuarios_pdf',
+    'reporte_logs_pdf',
 ]

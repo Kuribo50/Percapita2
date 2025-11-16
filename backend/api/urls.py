@@ -91,4 +91,9 @@ urlpatterns = [
     path("notificaciones/<int:pk>/marcar-leida/", views.marcar_notificacion_leida, name="marcar-notificacion-leida"),
     path("notificaciones/marcar-todas-leidas/", views.marcar_todas_leidas, name="marcar-todas-leidas"),
     path("notificaciones/count/", views.notificaciones_no_leidas_count, name="notificaciones-count"),
+
+    # Reportes PDF
+    path("reportes/estadisticas/", views.reporte_estadisticas_pdf, name="reporte-estadisticas-pdf"),
+    path("reportes/usuarios/", views.reporte_usuarios_pdf, name="reporte-usuarios-pdf"),
+    path("reportes/logs/", views.reporte_logs_pdf, name="reporte-logs-pdf"),
 ]
