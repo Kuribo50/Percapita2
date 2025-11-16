@@ -1,0 +1,15 @@
+# Requirements for MkDocs Documentation
+
+# Core
+mkdocs==1.5.3
+mkdocs-material==9.5.3
+
+# Plugins
+mkdocs-minify-plugin==0.7.1
+
+# Extensions
+pymdown-extensions==10.5
+pygments==2.17.2
+
+# Markdown extensions
+markdown==3.5.1

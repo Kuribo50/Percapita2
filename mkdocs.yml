@@ -1,0 +1,200 @@
+site_name: Sistema Per Cápita FONASA
+site_description: Sistema de gestión y validación de usuarios inscritos en el sistema Per Cápita FONASA
+site_author: Equipo de Desarrollo
+site_url: https://percapita.example.com
+
+# Repository
+repo_name: Percapita2
+repo_url: https://github.com/your-org/Percapita2
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2025 Sistema Per Cápita FONASA
+
+# Theme configuration
+theme:
+  name: material
+  language: es
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Cambiar a modo oscuro
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Cambiar a modo claro
+
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+  icon:
+    repo: fontawesome/brands/github
+    admonition:
+      note: fontawesome/solid/note-sticky
+      abstract: fontawesome/solid/book
+      info: fontawesome/solid/circle-info
+      tip: fontawesome/solid/bullhorn
+      success: fontawesome/solid/check
+      question: fontawesome/solid/circle-question
+      warning: fontawesome/solid/triangle-exclamation
+      failure: fontawesome/solid/bomb
+      danger: fontawesome/solid/skull
+      bug: fontawesome/solid/robot
+      example: fontawesome/solid/flask
+      quote: fontawesome/solid/quote-left
+
+# Plugins
+plugins:
+  - search:
+      lang: es
+  - minify:
+      minify_html: true
+
+# Extensions
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Navigation
+nav:
+  - Inicio:
+    - Bienvenida: index.md
+    - Características: features.md
+    - Arquitectura: architecture.md
+
+  - Guía de Inicio:
+    - Instalación: getting-started/installation.md
+    - Configuración: getting-started/configuration.md
+    - Primer Uso: getting-started/first-steps.md
+
+  - Guía de Usuario:
+    - Introducción: user-guide/index.md
+    - Administrador: user-guide/admin.md
+    - Informático: user-guide/informatico.md
+    - Administrativo: user-guide/administrativo.md
+
+  - API de Backend:
+    - Introducción: api/index.md
+    - Autenticación: api/authentication.md
+    - Endpoints:
+      - Usuarios: api/endpoints/usuarios.md
+      - Cortes FONASA: api/endpoints/cortes.md
+      - HP Trakcare: api/endpoints/hp-trakcare.md
+      - Nuevos Usuarios: api/endpoints/nuevos-usuarios.md
+      - Validaciones: api/endpoints/validaciones.md
+      - Catálogos: api/endpoints/catalogos.md
+      - Auditoría: api/endpoints/auditoria.md
+      - Notificaciones: api/endpoints/notificaciones.md
+      - Búsqueda: api/endpoints/busqueda.md
+      - Reportes: api/endpoints/reportes.md
+    - Modelos: api/models.md
+    - Permisos: api/permissions.md
+
+  - Desarrollo:
+    - Entorno de Desarrollo: developer/setup.md
+    - Estructura del Proyecto: developer/structure.md
+    - Guía de Contribución: developer/contributing.md
+    - Pruebas: developer/testing.md
+    - Mejores Prácticas: developer/best-practices.md
+
+  - Despliegue:
+    - Producción: deployment/production.md
+    - Docker: deployment/docker.md
+    - Variables de Entorno: deployment/environment.md
+    - Seguridad: deployment/security.md
+
+  - Referencia:
+    - Glosario: reference/glossary.md
+    - FAQ: reference/faq.md
+    - Solución de Problemas: reference/troubleshooting.md
+    - Changelog: reference/changelog.md
+
+# Extra
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/your-org/Percapita2
+    - icon: fontawesome/solid/envelope
+      link: mailto:soporte@percapita.example.com
+
+  analytics:
+    feedback:
+      title: ¿Te fue útil esta página?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: Esta página me ayudó
+          data: 1
+          note: >-
+            ¡Gracias por tu feedback!
+        - icon: material/emoticon-sad-outline
+          name: Esta página necesita mejoras
+          data: 0
+          note: >-
+            Gracias por tu feedback. Ayúdanos a mejorar esta página.
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

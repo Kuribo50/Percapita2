@@ -1,0 +1,165 @@
+/* Extra styles for MkDocs Material */
+
+/* Custom color scheme for Per Cápita FONASA */
+:root {
+  --percapita-primary: #1e40af;
+  --percapita-secondary: #3b82f6;
+  --percapita-accent: #60a5fa;
+}
+
+/* Logo and branding */
+.md-header__title {
+  font-weight: 600;
+}
+
+/* Enhanced code blocks */
+.highlight pre {
+  border-left: 3px solid var(--percapita-primary);
+}
+
+/* Custom admonitions */
+.md-typeset .admonition {
+  border-left: 4px solid;
+}
+
+/* Cards grid for user guides */
+.grid.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.grid.cards > * {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 4px;
+  padding: 1.5rem;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.grid.cards > *:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Enhanced tables */
+.md-typeset table:not([class]) {
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--percapita-primary);
+  color: white;
+  font-weight: 600;
+}
+
+.md-typeset table:not([class]) tr:hover {
+  background-color: var(--md-default-fg-color--lightest);
+}
+
+/* Code inline */
+.md-typeset code {
+  background-color: var(--md-code-bg-color);
+  border-radius: 3px;
+  padding: 0.1em 0.4em;
+}
+
+/* Keyboard keys */
+.md-typeset kbd {
+  background-color: #fafafa;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  color: #374151;
+  display: inline-block;
+  font-family: monospace;
+  font-size: 0.85em;
+  line-height: 1;
+  padding: 0.2em 0.4em;
+  white-space: nowrap;
+}
+
+/* Definition lists for glossary */
+.md-typeset dt {
+  font-weight: 700;
+  margin-top: 1.5rem;
+  color: var(--percapita-primary);
+}
+
+.md-typeset dd {
+  margin-left: 2rem;
+  margin-bottom: 1rem;
+}
+
+/* Mermaid diagrams */
+.mermaid {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+/* Checklist styling */
+.md-typeset .task-list-item input {
+  margin-right: 0.5rem;
+}
+
+/* Footer customization */
+.md-footer-meta {
+  background-color: var(--percapita-primary);
+}
+
+/* Search results */
+.md-search-result__meta {
+  color: var(--percapita-secondary);
+}
+
+/* Navigation tabs */
+.md-tabs {
+  background-color: var(--percapita-primary);
+}
+
+/* Scrollbar (webkit browsers) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--percapita-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--percapita-primary);
+}
+
+/* Responsive images */
+.md-typeset img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* API endpoint badges */
+.md-typeset .badge {
+  display: inline-block;
+  padding: 0.2em 0.6em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25rem;
+}
+
+.badge-get { background-color: #22c55e; }
+.badge-post { background-color: #3b82f6; }
+.badge-put { background-color: #f59e0b; }
+.badge-delete { background-color: #ef4444; }
+.badge-patch { background-color: #8b5cf6; }
