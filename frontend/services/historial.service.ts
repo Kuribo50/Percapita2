@@ -1,54 +1,41 @@
 /**
  * Servicio para gestión del historial de cargas
- * Maneja el historial de archivos subidos al sistema
+ *
+ * Maneja el historial de archivos subidos al sistema:
+ * - Cortes FONASA
+ * - HP Trakcare
+ * - Nuevos Usuarios
+ *
+ * Incluye estadísticas de éxito/error por cada carga.
  */
 
-import { apiClient, ApiResponse } from './api';
-
-export interface HistorialCarga {
-  id: number;
-  tipo: 'usuarios' | 'cortes';
-  nombreArchivo: string;
-  registrosProcesados: number;
-  registrosExitosos: number;
-  registrosError: number;
-  estado: 'completado' | 'procesando' | 'error';
-  usuarioId: number;
-  usuarioNombre: string;
-  creadoEl: string;
-  detalleErrores?: string[];
-}
-
-export interface HistorialCargaListResponse {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: HistorialCarga[];
-}
+import { apiClient } from './api';
+import type {
+  ApiResponse,
+  PaginatedResponse,
+  HistorialCarga,
+  HistorialCargaFilters
+} from '../types';
 
 class HistorialService {
   /**
-   * Obtiene el historial de cargas con paginación
+   * Obtiene el historial de cargas con paginación y filtros
    */
-  async getHistorial(params?: {
+  async getHistorial(params?: HistorialCargaFilters & {
     page?: number;
     page_size?: number;
-    tipo?: 'usuarios' | 'cortes';
-    estado?: string;
-    fecha_desde?: string;
-    fecha_hasta?: string;
-  }): Promise<ApiResponse<HistorialCargaListResponse>> {
+  }): Promise<ApiResponse<PaginatedResponse<HistorialCarga>>> {
     const queryParams = new URLSearchParams();
 
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
-    if (params?.tipo) queryParams.append('tipo', params.tipo);
-    if (params?.estado) queryParams.append('estado', params.estado);
-    if (params?.fecha_desde) queryParams.append('fecha_desde', params.fecha_desde);
-    if (params?.fecha_hasta) queryParams.append('fecha_hasta', params.fecha_hasta);
+    if (params?.tipoArchivo) queryParams.append('tipo_archivo', params.tipoArchivo);
+    if (params?.periodo) queryParams.append('periodo', params.periodo);
+    if (params?.fechaDesde) queryParams.append('fecha_desde', params.fechaDesde);
+    if (params?.fechaHasta) queryParams.append('fecha_hasta', params.fechaHasta);
 
     const endpoint = `/historial-cargas/${queryParams.toString() ? `?${queryParams}` : ''}`;
-    return apiClient.get<HistorialCargaListResponse>(endpoint);
+    return apiClient.get<PaginatedResponse<HistorialCarga>>(endpoint);
   }
 
   /**
