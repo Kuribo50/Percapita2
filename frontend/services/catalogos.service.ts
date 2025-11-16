@@ -1,79 +1,29 @@
 /**
- * Servicio para gestión de catálogos (etnias, nacionalidades, sectores, etc.)
- * Incluye operaciones CRUD completas para todos los catálogos
+ * Servicio para gestión de catálogos
+ *
+ * Maneja operaciones CRUD completas para todos los catálogos del sistema:
+ * - Etnias
+ * - Nacionalidades
+ * - Sectores y Subsectores
+ * - Establecimientos y Centros de Salud
+ *
+ * Incluye métodos para obtener todos los catálogos en una sola petición.
  */
 
-import { apiClient, ApiResponse } from './api';
+import { apiClient } from './api';
+import type {
+  ApiResponse,
+  Etnia,
+  Nacionalidad,
+  Sector,
+  Subsector,
+  Establecimiento,
+  CatalogosResponse
+} from '../types';
 
-export interface Etnia {
-  id: number;
-  nombre: string;
-  codigo?: string;
-  activo: boolean;
-  orden?: number;
-  descripcion?: string;
-  creadoEl?: string;
-  modificadoEl?: string;
-}
-
-export interface Nacionalidad {
-  id: number;
-  nombre: string;
-  codigo?: string;
-  codigoPais?: string;
-  activo: boolean;
-  orden?: number;
-  descripcion?: string;
-  creadoEl?: string;
-  modificadoEl?: string;
-}
-
-export interface Sector {
-  id: number;
-  nombre: string;
-  codigo?: string;
-  color?: string;
-  activo: boolean;
-  orden?: number;
-  descripcion?: string;
-  subsectores?: Subsector[];
-  creadoEl?: string;
-  modificadoEl?: string;
-}
-
-export interface Subsector {
-  id: number;
-  nombre: string;
-  codigo?: string;
-  sector?: number;
-  sectorId?: number;
-  sectorNombre?: string;
-  color?: string;
-  activo: boolean;
-  orden?: number;
-  descripcion?: string;
-  creadoEl?: string;
-  modificadoEl?: string;
-}
-
-export interface Establecimiento {
-  id: number;
-  nombre: string;
-  codigo?: string;
-  tipo?: string;
-  direccion?: string;
-  comuna?: string;
-  region?: string;
-  telefono?: string;
-  email?: string;
-  activo: boolean;
-  orden?: number;
-  descripcion?: string;
-  centros?: CentroSalud[];
-  creadoEl?: string;
-  modificadoEl?: string;
-}
-
+/**
+ * Centro de salud (no está en types/ pero se usa en este servicio)
+ */
 export interface CentroSalud {
   id: number;
   nombre: string;
@@ -89,23 +39,14 @@ export interface CentroSalud {
   modificadoEl?: string;
 }
 
-export interface AllCatalogosResponse {
-  etnias: Etnia[];
-  nacionalidades: Nacionalidad[];
-  sectores: Sector[];
-  subsectores: Subsector[];
-  establecimientos: Establecimiento[];
-  centros_salud: CentroSalud[];
-}
-
 class CatalogosService {
   // ==================== CATÁLOGOS COMPLETOS ====================
 
   /**
    * Obtiene todos los catálogos en una sola petición
    */
-  async getAllCatalogos(): Promise<ApiResponse<AllCatalogosResponse>> {
-    return apiClient.get<AllCatalogosResponse>('/catalogos/all/');
+  async getAllCatalogos(): Promise<ApiResponse<CatalogosResponse>> {
+    return apiClient.get<CatalogosResponse>('/catalogos/all/');
   }
 
   // ==================== ETNIAS ====================

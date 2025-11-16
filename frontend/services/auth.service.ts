@@ -1,15 +1,26 @@
 /**
  * Servicio de autenticación
- * Maneja login, registro, logout y tokens JWT
+ *
+ * Maneja:
+ * - Inicio de sesión y registro de usuarios
+ * - Gestión de tokens JWT (access y refresh)
+ * - Cierre de sesión
+ * - Almacenamiento de credenciales en localStorage
+ * - Verificación de estado de autenticación
  */
 
-import { apiClient, ApiResponse } from './api';
+import { apiClient } from './api';
+import type {
+  ApiResponse,
+  User,
+  LoginRequest,
+  LoginResponse,
+  ChangePasswordRequest
+} from '../types';
 
-export interface LoginCredentials {
-  rut: string;
-  password: string;
-}
-
+/**
+ * Datos para registro de nuevo usuario del sistema
+ */
 export interface RegisterData {
   rut: string;
   nombre: string;
@@ -19,35 +30,26 @@ export interface RegisterData {
   password: string;
 }
 
+/**
+ * Tokens de autenticación JWT
+ */
 export interface AuthTokens {
   access: string;
   refresh: string;
-}
-
-export interface User {
-  id: number;
-  rut: string;
-  nombre: string;
-  apellido: string;
-  email: string;
-  establecimiento: string;
-  rol: string;
-}
-
-export interface LoginResponse {
-  user: User;
-  tokens: AuthTokens;
 }
 
 class AuthService {
   /**
    * Inicia sesión y obtiene tokens JWT
    */
-  async login(credentials: LoginCredentials): Promise<ApiResponse<LoginResponse>> {
+  async login(credentials: LoginRequest): Promise<ApiResponse<LoginResponse>> {
     const response = await apiClient.post<LoginResponse>('/auth/login/', credentials);
 
     if (response.success && response.data) {
-      this.setTokens(response.data.tokens);
+      // Guardar token y usuario en localStorage
+      if ('token' in response.data) {
+        this.setAccessToken(response.data.token);
+      }
       this.setUser(response.data.user);
     }
 
@@ -61,7 +63,9 @@ class AuthService {
     const response = await apiClient.post<LoginResponse>('/auth/register/', userData);
 
     if (response.success && response.data) {
-      this.setTokens(response.data.tokens);
+      if ('token' in response.data) {
+        this.setAccessToken(response.data.token);
+      }
       this.setUser(response.data.user);
     }
 
@@ -114,6 +118,13 @@ class AuthService {
   }
 
   /**
+   * Cambia la contraseña del usuario actual
+   */
+  async changePassword(request: ChangePasswordRequest): Promise<ApiResponse<void>> {
+    return apiClient.post<void>('/auth/change-password/', request);
+  }
+
+  /**
    * Guarda los tokens en localStorage
    */
   private setTokens(tokens: AuthTokens): void {
@@ -124,11 +135,18 @@ class AuthService {
   }
 
   /**
+   * Guarda solo el token de acceso
+   */
+  private setAccessToken(token: string): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('authToken', token);
+  }
+
+  /**
    * Guarda los datos del usuario en localStorage
    */
   private setUser(user: User): void {
     if (typeof window === 'undefined') return;
-
     localStorage.setItem('user', JSON.stringify(user));
   }
 
