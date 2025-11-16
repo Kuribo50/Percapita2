@@ -20,8 +20,18 @@ from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.hashers import make_password
-from api.models import Usuario, Establecimiento
+from api.models import Usuario, Establecimiento, LogActividad
 from typing import List, Dict, Any
+
+
+def get_client_ip(request) -> str:
+    """Obtiene la IP del cliente desde la request."""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
 
 
 @api_view(['GET', 'POST'])
@@ -122,10 +132,32 @@ def usuarios_list(request):
         usuario.save()
 
         # Asignar centros si se proporcionan (solo para no-admin)
+        centros_asignados = []
         if usuario.rol != Usuario.ROL_ADMIN and 'centros_ids' in data:
             centros_ids = data['centros_ids']
             centros = Establecimiento.objects.filter(id__in=centros_ids)
             usuario.centros.set(centros)
+            centros_asignados = [c.nombre for c in centros]
+
+        # Registrar en log de auditoría
+        LogActividad.registrar(
+            usuario=request.usuario,
+            accion=LogActividad.ACCION_CREAR,
+            modulo=LogActividad.MODULO_USUARIOS,
+            descripcion=f'Creó el usuario {usuario.username} ({usuario.nombre_completo}) con rol {usuario.rol_display}',
+            objeto_tipo='Usuario',
+            objeto_id=usuario.id,
+            objeto_str=str(usuario),
+            cambios={
+                'username': usuario.username,
+                'nombre_completo': usuario.nombre_completo,
+                'rol': usuario.rol,
+                'centros': centros_asignados,
+                'activo': usuario.activo,
+            },
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')
+        )
 
         return Response(
             {
@@ -203,20 +235,27 @@ def usuario_detail(request, pk):
         # Actualizar usuario
         data = request.data
 
+        # Guardar valores anteriores para el log
+        cambios = {}
+
         # No permitir cambiar el username
-        if 'nombre_completo' in data:
+        if 'nombre_completo' in data and data['nombre_completo'] != usuario.nombre_completo:
+            cambios['nombre_completo'] = {'antes': usuario.nombre_completo, 'despues': data['nombre_completo']}
             usuario.nombre_completo = data['nombre_completo']
-        if 'email' in data:
+        if 'email' in data and data['email'] != usuario.email:
+            cambios['email'] = {'antes': usuario.email, 'despues': data['email']}
             usuario.email = data['email']
-        if 'rol' in data:
+        if 'rol' in data and data['rol'] != usuario.rol:
             roles_validos = [Usuario.ROL_ADMIN, Usuario.ROL_INFORMATICO, Usuario.ROL_ADMINISTRATIVO]
             if data['rol'] not in roles_validos:
                 return Response(
                     {'detail': f'Rol inválido. Debe ser uno de: {", ".join(roles_validos)}'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            cambios['rol'] = {'antes': usuario.rol, 'despues': data['rol']}
             usuario.rol = data['rol']
-        if 'activo' in data:
+        if 'activo' in data and data['activo'] != usuario.activo:
+            cambios['activo'] = {'antes': usuario.activo, 'despues': data['activo']}
             usuario.activo = data['activo']
 
         usuario.modificado_por = request.usuario
@@ -227,6 +266,21 @@ def usuario_detail(request, pk):
             centros_ids = data['centros_ids']
             centros = Establecimiento.objects.filter(id__in=centros_ids)
             usuario.centros.set(centros)
+
+        # Registrar en log si hubo cambios
+        if cambios:
+            LogActividad.registrar(
+                usuario=request.usuario,
+                accion=LogActividad.ACCION_EDITAR,
+                modulo=LogActividad.MODULO_USUARIOS,
+                descripcion=f'Actualizó el usuario {usuario.username} ({usuario.nombre_completo})',
+                objeto_tipo='Usuario',
+                objeto_id=usuario.id,
+                objeto_str=str(usuario),
+                cambios=cambios,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', '')
+            )
 
         return Response({
             'id': usuario.id,
@@ -246,7 +300,24 @@ def usuario_detail(request, pk):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Guardar info para el log antes de eliminar
         username = usuario.username
+        nombre_completo = usuario.nombre_completo
+        usuario_id = usuario.id
+
+        # Registrar en log antes de eliminar
+        LogActividad.registrar(
+            usuario=request.usuario,
+            accion=LogActividad.ACCION_ELIMINAR,
+            modulo=LogActividad.MODULO_USUARIOS,
+            descripcion=f'Eliminó el usuario {username} ({nombre_completo})',
+            objeto_tipo='Usuario',
+            objeto_id=usuario_id,
+            objeto_str=f'{nombre_completo} ({username})',
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')
+        )
+
         usuario.delete()
 
         return Response({
@@ -301,6 +372,19 @@ def restablecer_password(request, pk):
     usuario.set_password(nueva_password)
     usuario.modificado_por = request.usuario
     usuario.save()
+
+    # Registrar en log
+    LogActividad.registrar(
+        usuario=request.usuario,
+        accion=LogActividad.ACCION_RESTABLECER_PASSWORD,
+        modulo=LogActividad.MODULO_USUARIOS,
+        descripcion=f'Restableció la contraseña del usuario {usuario.username} ({usuario.nombre_completo})',
+        objeto_tipo='Usuario',
+        objeto_id=usuario.id,
+        objeto_str=str(usuario),
+        ip_address=get_client_ip(request),
+        user_agent=request.META.get('HTTP_USER_AGENT', '')
+    )
 
     return Response({
         'mensaje': f'Contraseña restablecida exitosamente para {usuario.username}'
@@ -358,14 +442,38 @@ def asignar_centros(request, pk):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Guardar centros anteriores
+    centros_anteriores = list(usuario.centros.values_list('nombre', flat=True))
+
     # Asignar centros
     usuario.centros.set(centros)
     usuario.modificado_por = request.usuario
     usuario.save()
 
+    centros_nuevos = [c.nombre for c in centros]
+
+    # Registrar en log
+    LogActividad.registrar(
+        usuario=request.usuario,
+        accion=LogActividad.ACCION_ASIGNAR_CENTROS,
+        modulo=LogActividad.MODULO_USUARIOS,
+        descripcion=f'Asignó centros al usuario {usuario.username} ({usuario.nombre_completo})',
+        objeto_tipo='Usuario',
+        objeto_id=usuario.id,
+        objeto_str=str(usuario),
+        cambios={
+            'centros': {
+                'antes': centros_anteriores,
+                'despues': centros_nuevos
+            }
+        },
+        ip_address=get_client_ip(request),
+        user_agent=request.META.get('HTTP_USER_AGENT', '')
+    )
+
     return Response({
         'mensaje': f'Centros asignados exitosamente a {usuario.username}',
-        'centros': [c.nombre for c in centros]
+        'centros': centros_nuevos
     })
 
 

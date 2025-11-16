@@ -14,6 +14,9 @@ import {
   XCircle,
   CheckCircle,
   UserSearch,
+  Shield,
+  Activity,
+  UserCog,
 } from "lucide-react";
 
 export type IconType = ComponentType<SVGProps<SVGSVGElement>>;
@@ -188,6 +191,28 @@ export const NAV_SECTIONS: NavigationSection[] = [
         icon: FileText,
         description: "Genera certificados de residencia",
         iconColor: "text-violet-500",
+      },
+    ],
+  },
+  {
+    id: "administracion",
+    title: "Administración",
+    items: [
+      {
+        id: "gestion-usuarios",
+        title: "Gestión de usuarios",
+        href: "/dashboard/admin/usuarios",
+        icon: UserCog,
+        description: "Administrar usuarios del sistema",
+        iconColor: "text-purple-600",
+      },
+      {
+        id: "logs-auditoria",
+        title: "Logs de auditoría",
+        href: "/dashboard/admin/logs",
+        icon: Activity,
+        description: "Historial de actividades del sistema",
+        iconColor: "text-blue-600",
       },
     ],
   },

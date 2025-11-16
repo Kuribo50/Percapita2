@@ -36,6 +36,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSelectedNuevoUsuario } from "@/contexts/SelectedNuevoUsuarioContext";
+import { NotificationCenter } from "@/components/notificaciones/NotificationCenter";
 
 export interface NavbarProps {
   onToggleSidebar: () => void;
@@ -310,6 +311,8 @@ export default function Navbar({
               )}
             </motion.div>
           </Button>
+
+          <NotificationCenter />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

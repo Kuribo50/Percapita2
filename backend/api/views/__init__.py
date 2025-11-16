@@ -25,6 +25,16 @@ from .usuarios import (
     asignar_centros,
     roles_disponibles,
 )
+from .auditoria import (
+    logs_list,
+    log_detail,
+    notificaciones_list,
+    marcar_notificacion_leida,
+    marcar_todas_leidas,
+    notificaciones_no_leidas_count,
+    acciones_disponibles,
+    modulos_disponibles,
+)
 
 # Importar temporalmente el resto desde el archivo original
 # TODO: Dividir estas vistas en módulos separados
@@ -142,4 +152,14 @@ __all__ = [
     'asignar_centros',
     'roles_disponibles',
     'cambiar_password',
+
+    # Auditoría y Notificaciones
+    'logs_list',
+    'log_detail',
+    'notificaciones_list',
+    'marcar_notificacion_leida',
+    'marcar_todas_leidas',
+    'notificaciones_no_leidas_count',
+    'acciones_disponibles',
+    'modulos_disponibles',
 ]

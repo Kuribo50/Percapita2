@@ -78,4 +78,16 @@ urlpatterns = [
     # Búsqueda de Usuario
     path("buscar-usuario/", views.buscar_usuario, name="buscar-usuario"),
     path("buscar-familia/", views.buscar_familia, name="buscar-familia"),
+
+    # Auditoría y Logs
+    path("logs/", views.logs_list, name="logs-list"),
+    path("logs/<int:pk>/", views.log_detail, name="log-detail"),
+    path("logs/acciones/", views.acciones_disponibles, name="acciones-disponibles"),
+    path("logs/modulos/", views.modulos_disponibles, name="modulos-disponibles"),
+
+    # Notificaciones
+    path("notificaciones/", views.notificaciones_list, name="notificaciones-list"),
+    path("notificaciones/<int:pk>/marcar-leida/", views.marcar_notificacion_leida, name="marcar-notificacion-leida"),
+    path("notificaciones/marcar-todas-leidas/", views.marcar_todas_leidas, name="marcar-todas-leidas"),
+    path("notificaciones/count/", views.notificaciones_no_leidas_count, name="notificaciones-count"),
 ]

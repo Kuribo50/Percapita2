@@ -750,3 +750,134 @@ export type TipoArchivo = "CORTE_FONASA" | "HP_TRAKCARE" | "NUEVOS_USUARIOS";
  * Roles de usuario
  */
 export type RolUsuario = "ADMIN" | "OPERADOR" | "CONSULTA";
+
+// =============================================================================
+// AUDITORÍA Y LOGS
+// =============================================================================
+
+/**
+ * Tipos de acciones del sistema
+ */
+export type TipoAccion =
+  | "LOGIN"
+  | "LOGOUT"
+  | "CREAR"
+  | "EDITAR"
+  | "ELIMINAR"
+  | "VER"
+  | "EXPORTAR"
+  | "IMPORTAR"
+  | "VALIDAR"
+  | "RESTABLECER_PASSWORD"
+  | "ASIGNAR_CENTROS";
+
+/**
+ * Módulos del sistema
+ */
+export type ModuloSistema =
+  | "USUARIOS"
+  | "CORTES"
+  | "NUEVOS_USUARIOS"
+  | "HP_TRAKCARE"
+  | "VALIDACIONES"
+  | "CATALOGOS"
+  | "SISTEMA";
+
+/**
+ * Log de actividad del sistema
+ */
+export interface LogActividad {
+  id: number;
+  usuario: {
+    id?: number;
+    username: string;
+    nombre_completo: string;
+  };
+  accion: TipoAccion;
+  accion_display: string;
+  modulo: ModuloSistema;
+  modulo_display: string;
+  descripcion: string;
+  objeto_tipo?: string;
+  objeto_id?: number;
+  objeto_str?: string;
+  cambios?: Record<string, any>;
+  ip_address?: string;
+  user_agent?: string;
+  timestamp: string;
+}
+
+/**
+ * Filtros para logs
+ */
+export interface LogFiltros {
+  usuario_id?: number;
+  accion?: TipoAccion;
+  modulo?: ModuloSistema;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  search?: string;
+  limit?: number;
+}
+
+/**
+ * Respuesta de lista de logs
+ */
+export interface LogsResponse {
+  count: number;
+  results: LogActividad[];
+}
+
+/**
+ * Opción de acción disponible
+ */
+export interface AccionDisponible {
+  value: TipoAccion;
+  label: string;
+}
+
+/**
+ * Opción de módulo disponible
+ */
+export interface ModuloDisponible {
+  value: ModuloSistema;
+  label: string;
+}
+
+// =============================================================================
+// NOTIFICACIONES DEL SISTEMA
+// =============================================================================
+
+/**
+ * Tipos de notificación
+ */
+export type TipoNotificacion = "INFO" | "SUCCESS" | "WARNING" | "ERROR";
+
+/**
+ * Notificación del sistema
+ */
+export interface NotificacionSistema {
+  id: number;
+  tipo: TipoNotificacion;
+  titulo: string;
+  mensaje: string;
+  leida: boolean;
+  url?: string;
+  datos?: Record<string, any>;
+  timestamp: string;
+}
+
+/**
+ * Respuesta de notificaciones
+ */
+export interface NotificacionesResponse {
+  count: number;
+  results: NotificacionSistema[];
+}
+
+/**
+ * Contador de notificaciones no leídas
+ */
+export interface NotificacionesCount {
+  count: number;
+}

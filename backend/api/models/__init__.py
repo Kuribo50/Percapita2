@@ -61,6 +61,12 @@ from .auth import (
     Usuario,
 )
 
+# Auditoría
+from .auditoria import (
+    LogActividad,
+    Notificacion,
+)
+
 # Exportar todos los modelos y utilidades
 __all__ = [
     # Utilidades
@@ -86,4 +92,7 @@ __all__ = [
     'HistorialCarga',
     # Autenticación
     'Usuario',
+    # Auditoría
+    'LogActividad',
+    'Notificacion',
 ]
