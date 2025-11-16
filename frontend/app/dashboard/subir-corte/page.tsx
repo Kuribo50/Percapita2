@@ -633,19 +633,89 @@ export default function SubirCortePage() {
     if (dataset === "corte" && replaceCorte) params.replace = true;
 
     const totalRows = state.rows.length;
-    const CHUNK_SIZE = totalRows > 10000 ? 2000 : totalRows > 5000 ? 1000 : 500;
+    const INITIAL_CHUNK_SIZE =
+      totalRows > 10000 ? 2000 : totalRows > 5000 ? 1000 : 500;
+    const MIN_CHUNK_SIZE = 250;
 
-    if (totalRows <= CHUNK_SIZE) {
+    const parseResponsePayload = async (
+      response: Response
+    ): Promise<Record<string, unknown>> => {
+      const raw = await response.text();
+      if (!raw) {
+        return {};
+      }
+
+      try {
+        return JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        return { raw } as Record<string, unknown>;
+      }
+    };
+
+    const buildErrorMessage = (
+      base: string,
+      payload: Record<string, unknown>
+    ) => {
+      const detail = (payload as { detail?: unknown })?.detail;
+      if (detail) {
+        const detailMsg =
+          typeof detail === "string" ? detail : JSON.stringify(detail);
+        return `${base}: ${detailMsg}`;
+      }
+
+      // Si el backend devolvió texto plano (por ejemplo, un traceback HTML o texto de error)
+      const raw = (payload as { raw?: unknown })?.raw;
+      if (typeof raw === "string" && raw.trim().length > 0) {
+        // Intentamos detectar un DataError típico de PostgreSQL por límite de varchar(12)
+        const lowered = raw.toLowerCase();
+        if (
+          lowered.includes("dataerror") &&
+          (lowered.includes("character varying(12)") ||
+            lowered.includes("character varying(12)"))
+        ) {
+          return (
+            base +
+            ": Uno de los valores de RUT de centro o RUN supera los 12 caracteres " +
+            "permitidos por el sistema. Revisa las columnas run, rutCentroProcedencia " +
+            "y rutCentroActual en tu archivo."
+          );
+        }
+
+        // Si no es el caso anterior, devolvemos parte del texto para ayudar a depurar
+        const snippet = raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
+        return `${base}: Respuesta del servidor no estructurada: ${snippet}`;
+      }
+
+      const otherEntries = Object.entries(payload ?? {}).filter(
+        ([key]) => key !== "detail" && key !== "raw"
+      );
+      if (otherEntries.length > 0) {
+        const errors = otherEntries
+          .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+          .join(", ");
+        return `${base}: ${errors}`;
+      }
+
+      return base;
+    };
+
+    const shouldRetryChunkUpload = (
+      status: number,
+      payload: Record<string, unknown>
+    ) => {
+      if (status === 413 || status === 429) return true;
+      if (status >= 500) return true;
+      return Object.keys(payload ?? {}).length === 0;
+    };
+
+    if (totalRows <= INITIAL_CHUNK_SIZE) {
       const response = await fetch(buildEndpointUrl(dataset, params), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ records: state.rows }),
       });
 
-      let payload: Record<string, unknown> = {};
-      try {
-        payload = await response.json();
-      } catch {}
+      const payload = await parseResponsePayload(response);
 
       if (!response.ok) {
         console.error("Error en upload:", {
@@ -657,21 +727,7 @@ export default function SubirCortePage() {
           firstRow: state.rows[0],
         });
 
-        let errorMsg = "Error cargando datos";
-        if (payload?.detail) {
-          errorMsg =
-            typeof payload.detail === "string"
-              ? payload.detail
-              : JSON.stringify(payload.detail);
-        } else if (payload) {
-          const errors = Object.entries(payload)
-            .filter(([key]) => key !== "detail")
-            .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-            .join(", ");
-          if (errors) errorMsg = `Errores de validación: ${errors}`;
-        }
-
-        throw new Error(errorMsg);
+        throw new Error(buildErrorMessage("Error cargando datos", payload));
       }
 
       if (onProgress) onProgress(100, totalRows, totalRows);
@@ -684,75 +740,96 @@ export default function SubirCortePage() {
       };
     }
 
+    type ChunkTask = {
+      rows: Array<Record<string, unknown>>;
+      useReplace: boolean;
+    };
+
+    const chunkQueue: ChunkTask[] = [];
+    for (let i = 0; i < state.rows.length; i += INITIAL_CHUNK_SIZE) {
+      chunkQueue.push({
+        rows: state.rows.slice(i, i + INITIAL_CHUNK_SIZE),
+        useReplace: i === 0 && Boolean(params.replace),
+      });
+    }
+
     let totalCreated = 0;
     let totalUpdated = 0;
     let totalInvalid = 0;
     let processedRows = 0;
+    let chunkAttempt = 0;
 
-    const chunks: Array<Array<Record<string, unknown>>> = [];
-    for (let i = 0; i < state.rows.length; i += CHUNK_SIZE) {
-      chunks.push(state.rows.slice(i, i + CHUNK_SIZE));
-    }
+    while (chunkQueue.length > 0) {
+      const task = chunkQueue.shift()!;
+      chunkAttempt += 1;
 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
       const chunkParams = { ...params };
-
-      if (i > 0 && chunkParams.replace) {
+      if (!task.useReplace && chunkParams.replace) {
         delete chunkParams.replace;
       }
 
       const response = await fetch(buildEndpointUrl(dataset, chunkParams), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ records: chunk }),
+        body: JSON.stringify({ records: task.rows }),
       });
 
-      let payload: Record<string, unknown> = {};
-      try {
-        payload = await response.json();
-      } catch {}
+      const payload = await parseResponsePayload(response);
 
       if (!response.ok) {
+        const retryable =
+          task.rows.length > MIN_CHUNK_SIZE &&
+          shouldRetryChunkUpload(response.status, payload);
+
         console.error("Error en chunk upload:", {
           status: response.status,
           statusText: response.statusText,
           payload,
           dataset,
-          chunkIndex: i,
-          chunkSize: chunk.length,
-          firstRowOfChunk: chunk[0],
+          chunkAttempt,
+          requestedSize: task.rows.length,
+          useReplace: task.useReplace,
         });
 
-        let errorMsg = `Error en chunk ${i + 1}/${chunks.length}`;
-        if (payload?.detail) {
-          errorMsg += `: ${
-            typeof payload.detail === "string"
-              ? payload.detail
-              : JSON.stringify(payload.detail)
-          }`;
-        } else if (payload) {
-          const errors = Object.entries(payload)
-            .filter(([key]) => key !== "detail")
-            .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-            .join(", ");
-          if (errors) errorMsg += `: ${errors}`;
+        if (retryable) {
+          const splitIndex = Math.ceil(task.rows.length / 2);
+          const firstHalf = task.rows.slice(0, splitIndex);
+          const secondHalf = task.rows.slice(splitIndex);
+
+          if (secondHalf.length > 0) {
+            chunkQueue.unshift({ rows: secondHalf, useReplace: false });
+          }
+          chunkQueue.unshift({ rows: firstHalf, useReplace: task.useReplace });
+
+          console.warn(
+            `Chunk demasiado grande (status ${response.status}). Reduciendo tamaño a ${firstHalf.length} registros.`
+          );
+          await wait(200);
+          continue;
         }
 
-        throw new Error(errorMsg);
+        throw new Error(
+          buildErrorMessage(
+            `Error en chunk (${task.rows.length} registros)`,
+            payload
+          )
+        );
       }
 
       totalCreated += Number(payload?.created ?? 0);
       totalUpdated += Number(payload?.updated ?? 0);
       totalInvalid += Number(payload?.invalid ?? 0);
-      processedRows += chunk.length;
+      processedRows += task.rows.length;
 
-      const progress = Math.round((processedRows / totalRows) * 100);
       if (onProgress) {
+        const progress = Math.min(
+          100,
+          Math.round((processedRows / totalRows) * 100)
+        );
         onProgress(progress, processedRows, totalRows);
       }
 
-      if (i < chunks.length - 1) {
+      if (chunkQueue.length > 0) {
         await wait(100);
       }
     }
@@ -779,6 +856,7 @@ export default function SubirCortePage() {
       totalRows,
       startedAt,
       estimatedMs,
+      elapsedMs: 0,
       currentPhase: "uploading",
     });
 
@@ -806,6 +884,7 @@ export default function SubirCortePage() {
                   ...prev,
                   progress,
                   etaSeconds,
+                  elapsedMs: elapsed,
                   currentPhase,
                 }
               : prev
@@ -819,6 +898,7 @@ export default function SubirCortePage() {
               ...prev,
               progress: 100,
               etaSeconds: 0,
+              elapsedMs: Date.now() - startedAt,
               currentPhase: "finalizing",
             }
           : prev

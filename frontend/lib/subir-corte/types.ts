@@ -64,5 +64,6 @@ export interface UploadOverlayState {
   totalRows: number;
   startedAt: number;
   estimatedMs: number;
+  elapsedMs: number;
   currentPhase: "uploading" | "processing" | "finalizing";
 }

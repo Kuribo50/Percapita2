@@ -2,17 +2,18 @@ from django.http import QueryDict
 from rest_framework import serializers
 
 from .models import (
-    CorteFonasa, 
-    HpTrakcare, 
-    NuevoUsuario, 
-    ValidacionCorte, 
+    CorteFonasa,
+    CorteFonasaObservacion,
+    HpTrakcare,
+    NuevoUsuario,
+    ValidacionCorte,
     HistorialCarga,
     Etnia,
     Nacionalidad,
     Sector,
     Subsector,
     Establecimiento,
-    Usuario
+    Usuario,
 )
 
 
@@ -27,8 +28,11 @@ class CorteFonasaRecordSerializer(serializers.Serializer):
     fehcaCorte = serializers.CharField()
     codGenero = serializers.CharField(required=False, allow_blank=True)
     nombreCentro = serializers.CharField(required=False, allow_blank=True)
+    rutCentroProcedencia = serializers.CharField(required=False, allow_blank=True)
     centroDeProcedencia = serializers.CharField(required=False, allow_blank=True)
     comunaDeProcedencia = serializers.CharField(required=False, allow_blank=True)
+    rutCentroActual = serializers.CharField(required=False, allow_blank=True)
+    nombreCentroActual = serializers.CharField(required=False, allow_blank=True)
     centroActual = serializers.CharField(required=False, allow_blank=True)
     comunaActual = serializers.CharField(required=False, allow_blank=True)
     aceptadoRechazado = serializers.CharField(required=False, allow_blank=True)
@@ -86,6 +90,95 @@ class HpTrakcareRecordSerializer(serializers.Serializer):
 DATE_INPUT_FORMATS = ["%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d", "%d/%m/%Y"]
 
 
+class CorteFonasaObservacionSerializer(serializers.ModelSerializer):
+    corteId = serializers.IntegerField(source="corte_id", read_only=True)
+    run = serializers.CharField(source="corte.run", read_only=True)
+    estadoRevision = serializers.CharField(source="estado_revision", read_only=True)
+    tipo = serializers.CharField(read_only=True)
+    createdAt = serializers.DateTimeField(source="created_at", read_only=True)
+    updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
+    autorNombre = serializers.SerializerMethodField()
+    autorId = serializers.SerializerMethodField()
+    adjuntoUrl = serializers.SerializerMethodField()
+    adjuntoNombre = serializers.SerializerMethodField()
+    centroActual = serializers.SerializerMethodField()
+    fechaCorte = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CorteFonasaObservacion
+        fields = [
+            "id",
+            "corteId",
+            "run",
+            "titulo",
+            "texto",
+            "estadoRevision",
+            "tipo",
+            "adjuntoUrl",
+            "adjuntoNombre",
+            "metadata",
+            "createdAt",
+            "updatedAt",
+            "autorNombre",
+            "autorId",
+            "centroActual",
+            "fechaCorte",
+        ]
+        read_only_fields = fields
+
+    def get_autorNombre(self, obj: CorteFonasaObservacion) -> str | None:
+        # Primero intentar el campo de nombre guardado
+        if obj.autor_nombre:
+            return obj.autor_nombre
+        
+        # Luego intentar obtener del usuario relacionado
+        autor = obj.autor
+        if not autor:
+            return None
+        nombre = getattr(autor, "nombre_completo", None)
+        if nombre:
+            return nombre
+        # Fallback to username if full name not available
+        return getattr(autor, "username", None)
+
+    def get_autorId(self, obj: CorteFonasaObservacion) -> int | None:
+        autor = obj.autor
+        if autor is None:
+            return None
+        return getattr(autor, "id", None)
+
+    def get_adjuntoUrl(self, obj: CorteFonasaObservacion) -> str | None:
+        if not obj.adjunto:
+            return None
+        request = self.context.get("request") if self.context else None
+        try:
+            url = obj.adjunto.url
+        except ValueError:
+            return None
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_adjuntoNombre(self, obj: CorteFonasaObservacion) -> str | None:
+        if not obj.adjunto:
+            return None
+        nombre = obj.adjunto.name or ""
+        return nombre.split("/")[-1] if nombre else None
+
+    def get_centroActual(self, obj: CorteFonasaObservacion) -> str | None:
+        corte = obj.corte
+        if not corte:
+            return None
+        # Priorizar nombre_centro (centro de inscripción)
+        return corte.nombre_centro or corte.centro_actual or None
+
+    def get_fechaCorte(self, obj: CorteFonasaObservacion) -> str | None:
+        corte = obj.corte
+        if corte and corte.fecha_corte:
+            return corte.fecha_corte.isoformat()
+        return None
+
+
 class CorteFonasaDetailSerializer(serializers.ModelSerializer):
     apPaterno = serializers.CharField(
         source="ap_paterno", required=False, allow_null=True, allow_blank=True
@@ -106,11 +199,20 @@ class CorteFonasaDetailSerializer(serializers.ModelSerializer):
     nombreCentro = serializers.CharField(
         source="nombre_centro", required=False, allow_null=True, allow_blank=True
     )
+    rutCentroProcedencia = serializers.CharField(
+        source="rut_centro_procedencia", required=False, allow_null=True, allow_blank=True
+    )
     centroDeProcedencia = serializers.CharField(
         source="centro_de_procedencia", required=False, allow_null=True, allow_blank=True
     )
     comunaDeProcedencia = serializers.CharField(
         source="comuna_de_procedencia", required=False, allow_null=True, allow_blank=True
+    )
+    rutCentroActual = serializers.CharField(
+        source="rut_centro_actual", required=False, allow_null=True, allow_blank=True
+    )
+    nombreCentroActual = serializers.CharField(
+        source="nombre_centro_actual", required=False, allow_null=True, allow_blank=True
     )
     centroActual = serializers.CharField(
         source="centro_actual", required=False, allow_null=True, allow_blank=True
@@ -139,8 +241,11 @@ class CorteFonasaDetailSerializer(serializers.ModelSerializer):
             "fehcaCorte",
             "codGenero",
             "nombreCentro",
+            "rutCentroProcedencia",
             "centroDeProcedencia",
             "comunaDeProcedencia",
+            "rutCentroActual",
+            "nombreCentroActual",
             "centroActual",
             "comunaActual",
             "aceptadoRechazado",

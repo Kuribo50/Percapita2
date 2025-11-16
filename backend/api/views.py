@@ -1,18 +1,24 @@
 from datetime import date, datetime
+import json
 from typing import Dict, List, Tuple
+import hashlib
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Max
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated
 
 from .models import (
     CorteFonasa,
     HpTrakcare,
     HistorialCarga,
+    CorteFonasaObservacion,
     NuevoUsuario,
     ValidacionCorte,
     Etnia,
@@ -31,6 +37,7 @@ from .serializers import (
     NuevoUsuarioSerializer,
     NuevoUsuarioRecordSerializer,
     ValidacionCorteSerializer,
+    CorteFonasaObservacionSerializer,
     EtniaSerializer,
     NacionalidadSerializer,
     SectorSerializer,
@@ -170,8 +177,6 @@ def _safe_str(value, *, max_length: int | None = None) -> str:
     if max_length is not None:
         return text[:max_length]
     return text
-
-
 def _parse_date(value: str | None) -> date | None:
     if not value:
         return None
@@ -193,6 +198,25 @@ def _parse_int(value: str | None) -> int | None:
     try:
         return int(str(value).strip())
     except (TypeError, ValueError):
+        return None
+
+
+def get_rut_from_token(token: str | None) -> str | None:
+    """Extrae el RUN del token base64 enviado desde el frontend."""
+    if not token:
+        return None
+    
+    try:
+        import base64
+        # Remover el prefijo "Bearer " si existe
+        if token.startswith("Bearer "):
+            token = token[7:]
+        
+        # Decodificar el base64
+        decoded = base64.b64decode(token).decode('utf-8')
+        payload = json.loads(decoded)
+        return payload.get('rut')
+    except Exception:
         return None
 
 
@@ -399,6 +423,9 @@ def upload_corte_fonasa(request):
         centro = _safe_str(request.query_params.get("centro"))
         # Soporte para múltiples centros separados por coma
         centros = request.query_params.get("centros")
+        # Nuevo parámetro para filtrar solo validados o no validados
+        validated_only = request.query_params.get("validated_only", "").lower() in {"1", "true", "yes"}
+        non_validated_only = request.query_params.get("non_validated_only", "").lower() in {"1", "true", "yes"}
 
         queryset = CorteFonasa.objects.all()
         if month_filter:
@@ -442,6 +469,12 @@ def upload_corte_fonasa(request):
             ~non_validated_filter
         )
 
+        # Aplicar filtro de validados/no validados si se solicita
+        if validated_only:
+            queryset = queryset.filter(validated_filter)
+        elif non_validated_only:
+            queryset = queryset.filter(non_validated_filter)
+
         validated_count = queryset.filter(validated_filter).count()
         non_validated_count = queryset.filter(non_validated_filter).count()
 
@@ -466,6 +499,26 @@ def upload_corte_fonasa(request):
             except (TypeError, ValueError):
                 parsed_limit = 500
             limit_value = max(parsed_limit, 0)
+
+        # OPTIMIZACIÓN: Cache para usuarios validados cuando se pide all=true
+        cache_key = None
+        use_cache = validated_only and include_all and not month_filter and not search_term and not centro and not centros
+        
+        if use_cache:
+            # Generar cache key basado en última actualización
+            last_update = CorteFonasa.objects.filter(validated_filter).aggregate(
+                max_fecha=Max('fecha_corte')
+            )['max_fecha']
+            
+            if last_update:
+                cache_key = f"validated_users_all_{last_update.strftime('%Y%m%d')}_v2"
+                cached_response = cache.get(cache_key)
+                
+                if cached_response:
+                    print(f"✅ Cache HIT para usuarios validados: {cache_key}")
+                    return Response(cached_response)
+                else:
+                    print(f"⚠️ Cache MISS para usuarios validados: {cache_key}")
 
         # Si solo queremos el summary, no traemos rows
         if summary_only:
@@ -540,17 +593,23 @@ def upload_corte_fonasa(request):
                     for centro, data in centros_data.items()
                 ]
 
-        return Response(
-            {
-                "columns": CORTE_COLUMNS,
-                "rows": rows,
-                "total": total_count,
-                "validated": validated_count,
-                "non_validated": non_validated_count,
-                "summary": summary,
-                "by_centro": by_centro,  # Nuevo campo con datos por centro
-            }
-        )
+        response_data = {
+            "columns": CORTE_COLUMNS,
+            "rows": rows,
+            "total": total_count,
+            "validated": validated_count,
+            "non_validated": non_validated_count,
+            "summary": summary,
+            "by_centro": by_centro,  # Nuevo campo con datos por centro
+        }
+
+        # Guardar en cache si aplica
+        if use_cache and cache_key and rows:
+            # Cache por 10 minutos (600 segundos)
+            cache.set(cache_key, response_data, timeout=600)
+            print(f"💾 Datos guardados en cache: {cache_key} ({len(rows)} registros)")
+
+        return Response(response_data)
 
     records = request.data.get("records")
     if not isinstance(records, list) or not records:
@@ -604,6 +663,7 @@ def upload_corte_fonasa(request):
                 "nombre_centro": _safe_str(record.get("nombreCentro")),
                 "centro_de_procedencia": _safe_str(record.get("centroDeProcedencia")),
                 "comuna_de_procedencia": _safe_str(record.get("comunaDeProcedencia")),
+                "nombre_centro_actual": _safe_str(record.get("nombreCentroActual")),
                 "centro_actual": _safe_str(record.get("centroActual")),
                 "comuna_actual": _safe_str(record.get("comunaActual")),
                 "aceptado_rechazado": _safe_str(record.get("aceptadoRechazado"), max_length=255),
@@ -844,6 +904,81 @@ def corte_fonasa_detail(request, pk: int):
 
     instance.refresh_from_db()
     return Response(_build_corte_payload(instance), status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def corte_fonasa_historial_mensual(request):
+    """
+    Obtiene el historial mensual de apariciones de un usuario en los cortes FONASA.
+    
+    Parámetros:
+    - run: RUN del usuario (requerido)
+    
+    Retorna un array de objetos con la información de cada mes donde el usuario apareció.
+    """
+    run_param = request.query_params.get("run")
+    
+    if not run_param:
+        return Response(
+            {"detail": "Parámetro 'run' es requerido"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Normalizar el RUN
+    run_normalizado = normalize_run(run_param)
+    
+    # Obtener todos los registros del usuario en los cortes FONASA, ordenados por fecha descendente
+    cortes_usuario = CorteFonasa.objects.filter(run=run_normalizado).order_by('-fecha_corte')
+    
+    if not cortes_usuario.exists():
+        return Response([], status=status.HTTP_200_OK)
+    
+    # Generar historial
+    historial = []
+    meses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ]
+    
+    # Agrupar por mes/año para evitar duplicados
+    registros_por_periodo = {}
+    for corte in cortes_usuario:
+        periodo_key = f"{corte.fecha_corte.year}-{corte.fecha_corte.month:02d}"
+        if periodo_key not in registros_por_periodo:
+            registros_por_periodo[periodo_key] = corte
+    
+    # Procesar cada periodo único
+    for periodo_key in sorted(registros_por_periodo.keys(), reverse=True):
+        corte = registros_por_periodo[periodo_key]
+        year = corte.fecha_corte.year
+        month = corte.fecha_corte.month
+        mes_str = f"{meses[month - 1]} {year}"
+        
+        # Determinar estado basado en motivo
+        motivo_rechazado = corte.motivo_normalizado in NON_VALIDATED_MOTIVOS if corte.motivo_normalizado else False
+        
+        if motivo_rechazado:
+            estado = "RECHAZADO"
+        else:
+            estado = "VALIDADO"
+        
+        historial.append({
+            "mes": month,
+            "anio": year,
+            "mesStr": mes_str,
+            "estado": estado,
+            "tipoRegistro": "corte",
+            "nombreCompleto": corte.nombre_completo,
+            "tramo": corte.tramo,
+            "genero": corte.genero,
+            "motivo": corte.motivo,
+            "fechaCorte": corte.fecha_corte.isoformat(),
+            "centroDeProcedencia": corte.centro_de_procedencia or None,
+            "centroActual": corte.centro_actual or None,
+            "aceptadoRechazado": corte.aceptado_rechazado or None,
+        })
+    
+    return Response(historial, status=status.HTTP_200_OK)
 
 
 @api_view(["GET", "PATCH", "DELETE"])
@@ -2008,6 +2143,14 @@ def historial_cargas(request):
     
     elif request.method == "POST":
         # Registrar nueva carga
+        # Validar autenticación (requiere token)
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return Response(
+                {"detail": "Autenticación requerida"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        
         data = request.data
         
         # Obtener IP del cliente
@@ -2017,11 +2160,27 @@ def historial_cargas(request):
         else:
             ip_address = request.META.get('REMOTE_ADDR')
         
+        # Determinar responsable de la carga desde el usuario autenticado
+        usuario_nombre = 'Anónimo'
+        
+        # Intentar obtener del token
+        token = auth_header.replace("Bearer ", "")
+        rut_del_token = get_rut_from_token(token)
+        if rut_del_token:
+            usuario_nombre = rut_del_token
+        elif request.user and request.user.is_authenticated:
+            usuario_nombre = (
+                getattr(request.user, "nombre_completo", "")
+                or request.user.get_full_name()
+                or request.user.get_username()
+                or usuario_nombre
+            )
+
         # Crear registro de historial
         historial = HistorialCarga.objects.create(
             tipo_carga=data.get('tipo_carga'),
             nombre_archivo=data.get('nombre_archivo'),
-            usuario=data.get('usuario', 'Anónimo'),
+            usuario=usuario_nombre,
             periodo_mes=data.get('periodo_mes'),
             periodo_anio=data.get('periodo_anio'),
             fecha_corte=data.get('fecha_corte'),
@@ -2452,4 +2611,605 @@ def cambiar_password(request, pk: int):
     return Response({
         "mensaje": f"Contraseña actualizada exitosamente para {usuario.username}"
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def usuarios_no_validados_list(request):
+    """
+    Lista todos los usuarios no validados (Rechazados y No Validados) del corte FONASA.
+    """
+    # Validar autenticación (requiere token)
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return Response(
+            {"detail": "Autenticación requerida"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    # Filtrar usuarios con estado Rechazado o No Validado
+    usuarios = CorteFonasa.objects.filter(
+        Q(aceptado_rechazado__icontains="Rechaz")
+        | Q(aceptado_rechazado__icontains="No Validado")
+        | Q(aceptado_rechazado__icontains="Rechazo")
+    ).select_related("centro_salud").order_by("-fecha_corte", "run")
+    
+    # Serializar los datos
+    data = []
+    for usuario in usuarios:
+        estado_raw = (usuario.aceptado_rechazado or "").strip()
+        estado_upper = estado_raw.upper()
+        estado_categoria = "otro"
+        if "RECHAZ" in estado_upper:
+            estado_categoria = "rechazado"
+        elif "NO VALIDADO" in estado_upper:
+            estado_categoria = "no_validado"
+
+        motivo_original = (usuario.motivo or "").strip()
+        motivo_normalizado = normalize_motivo(motivo_original) if motivo_original else ""
+
+        mes_corte = ""
+        if usuario.fecha_corte:
+            mes_corte = MONTH_NAMES_ES[usuario.fecha_corte.month - 1]
+
+        data.append(
+            {
+                "id": usuario.id,
+                "run": usuario.run,
+                "nombre": f"{usuario.nombres} {usuario.ap_paterno} {usuario.ap_materno}".strip(),
+                "centro_salud": usuario.centro_salud.nombre if usuario.centro_salud else usuario.nombre_centro,
+                "centro_actual": usuario.centro_actual or usuario.nombre_centro,
+                "rut_centro_procedencia": usuario.rut_centro_procedencia or None,
+                "rut_centro_actual": usuario.rut_centro_actual or None,
+                "nombre_centro_actual": usuario.nombre_centro_actual or None,
+                "genero": usuario.genero,
+                "nacionalidad": "",  # No está en el modelo actual
+                "tramo": usuario.tramo,
+                "estado_validacion": estado_raw,
+                "estado_categoria": estado_categoria,
+                "mes": mes_corte,
+                "ano": usuario.fecha_corte.year if usuario.fecha_corte else None,
+                "motivo_rechazo": motivo_original if estado_categoria == "rechazado" else "",
+                "motivo_no_validado": motivo_original if estado_categoria == "no_validado" else "",
+                "motivo_original": motivo_original,
+                "motivo_normalizado": motivo_normalizado,
+                "creadoEl": usuario.creado_el.isoformat() if usuario.creado_el else None,
+                "fecha_corte": usuario.fecha_corte.isoformat() if usuario.fecha_corte else None,
+            }
+        )
+    
+    return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def usuario_no_validado_detail(request, pk):
+    """
+    Detalle de un usuario no validado del corte FONASA.
+    """
+    try:
+        usuario = CorteFonasa.objects.select_related('centro_salud').get(pk=pk)
+    except CorteFonasa.DoesNotExist:
+        return Response(
+            {"detail": "Usuario no encontrado"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    data = {
+        'id': usuario.id,
+        'run': usuario.run,
+        'nombres': usuario.nombres,
+        'ap_paterno': usuario.ap_paterno,
+        'ap_materno': usuario.ap_materno,
+        'fecha_nacimiento': usuario.fecha_nacimiento,
+        'genero': usuario.genero,
+        'tramo': usuario.tramo,
+        'fecha_corte': usuario.fecha_corte,
+        'centro_salud': usuario.centro_salud.nombre if usuario.centro_salud else usuario.nombre_centro,
+        'centro_de_procedencia': usuario.centro_de_procedencia,
+        'comuna_de_procedencia': usuario.comuna_de_procedencia,
+        'centro_actual': usuario.centro_actual,
+        'comuna_actual': usuario.comuna_actual,
+        'aceptado_rechazado': usuario.aceptado_rechazado,
+        'motivo': usuario.motivo,
+        'motivo_normalizado': usuario.motivo_normalizado,
+        'creado_el': usuario.creado_el,
+    }
+    
+    return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET", "POST"])
+@parser_classes([MultiPartParser, FormParser])
+def usuario_no_validado_observaciones(request, run: str):
+    """Listado, creación de observaciones asociadas a un RUN de corte FONASA."""
+    
+    # Validar autenticación (requiere token)
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return Response(
+            {"detail": "Autenticación requerida"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    normalized_run = normalize_run(run)
+    if not normalized_run:
+        return Response(
+            {"detail": "RUN inválido"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    cortes_qs = (
+        CorteFonasa.objects.filter(run=normalized_run)
+        .order_by("-fecha_corte", "-id")
+        .select_related("centro_salud")
+    )
+
+    if not cortes_qs.exists():
+        return Response(
+            {"detail": "No se encontró información para el RUN indicado."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if request.method == "GET":
+        observaciones = (
+            CorteFonasaObservacion.objects.filter(corte__in=cortes_qs)
+            .select_related("corte", "autor", "corte__centro_salud")
+            .order_by("-created_at")
+        )
+        serializer = CorteFonasaObservacionSerializer(
+            observaciones,
+            many=True,
+            context={"request": request},
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    # POST - crear una observación
+    estado_revision = (request.data.get("estadoRevision") or "").strip().upper()
+    if not estado_revision:
+        return Response(
+            {"detail": "estadoRevision es requerido"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    estado_valid_values = {
+        choice[0] for choice in CorteFonasaObservacion.EstadoRevision.choices
+    }
+    if estado_revision not in estado_valid_values:
+        return Response(
+            {"detail": "estadoRevision no es válido"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    corte_id = request.data.get("corteId")
+    corte_obj = None
+    if corte_id:
+        try:
+            corte_obj = cortes_qs.get(id=corte_id)
+        except CorteFonasa.DoesNotExist:
+            return Response(
+                {"detail": "El corte seleccionado no corresponde al RUN indicado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    else:
+        corte_obj = cortes_qs.first()
+
+    titulo = (request.data.get("titulo") or "").strip()
+    texto = (request.data.get("texto") or "").strip()
+    adjunto = request.FILES.get("adjunto")
+
+    if not titulo and not texto and not adjunto:
+        return Response(
+            {"detail": "Debe ingresar un título, comentario o adjuntar un archivo."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    metadata_raw = request.data.get("metadata")
+    metadata_value = None
+    if metadata_raw:
+        if isinstance(metadata_raw, (dict, list)):
+            metadata_value = metadata_raw
+        else:
+            try:
+                metadata_value = json.loads(metadata_raw)
+            except (TypeError, ValueError):
+                metadata_value = None
+
+    # Obtener el nombre/RUT del usuario del token
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header.replace("Bearer ", "")
+    autor_nombre = get_rut_from_token(token) or "Desconocido"
+
+    observacion = CorteFonasaObservacion(
+        corte=corte_obj,
+        autor=request.user if request.user and request.user.is_authenticated else None,
+        autor_nombre=autor_nombre,
+        estado_revision=estado_revision,
+        tipo=CorteFonasaObservacion.TipoObservacion.MANUAL,
+        titulo=titulo,
+        texto=texto,
+    )
+
+    if metadata_value is not None:
+        observacion.metadata = metadata_value
+
+    if adjunto:
+        observacion.adjunto = adjunto
+
+    observacion.save()
+
+    serializer = CorteFonasaObservacionSerializer(
+        observacion,
+        context={"request": request},
+    )
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+@api_view(["DELETE", "PATCH"])
+@parser_classes([MultiPartParser, FormParser])
+def usuario_no_validado_observacion_detail(request, run: str, observacion_id: int):
+    """Eliminar o actualizar una observación específica."""
+    
+    # Validar que hay un token (autenticación requerida)
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return Response(
+            {"detail": "Autenticación requerida"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    
+    normalized_run = normalize_run(run)
+    if not normalized_run:
+        return Response(
+            {"detail": "RUN inválido"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    try:
+        observacion = CorteFonasaObservacion.objects.select_related("corte", "autor").get(
+            id=observacion_id,
+            corte__run=normalized_run
+        )
+    except CorteFonasaObservacion.DoesNotExist:
+        return Response(
+            {"detail": "Observación no encontrada"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    
+    # Para este MVP, permitir cualquiera que tenga un token válido
+    # En producción, deberías validar el JWT y obtener el usuario real
+    
+    if request.method == "DELETE":
+        observacion.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    # PATCH - actualizar observación
+    estado_revision = (request.data.get("estadoRevision") or "").strip().upper()
+    if estado_revision:
+        estado_valid_values = {
+            choice[0] for choice in CorteFonasaObservacion.EstadoRevision.choices
+        }
+        if estado_revision not in estado_valid_values:
+            return Response(
+                {"detail": "estadoRevision no es válido"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        observacion.estado_revision = estado_revision
+    
+    titulo = request.data.get("titulo")
+    if titulo is not None:
+        observacion.titulo = titulo.strip()
+    
+    texto = request.data.get("texto")
+    if texto is not None:
+        observacion.texto = texto.strip()
+    
+    adjunto = request.FILES.get("adjunto")
+    if adjunto:
+        observacion.adjunto = adjunto
+    
+    metadata_raw = request.data.get("metadata")
+    if metadata_raw:
+        if isinstance(metadata_raw, (dict, list)):
+            observacion.metadata = metadata_raw
+        else:
+            try:
+                observacion.metadata = json.loads(metadata_raw)
+            except (TypeError, ValueError):
+                pass
+    
+    observacion.save()
+    
+    serializer = CorteFonasaObservacionSerializer(
+        observacion,
+        context={"request": request},
+    )
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# =============================================================================
+# BUSCAR USUARIO
+# =============================================================================
+
+@api_view(["GET"])
+def buscar_usuario(request):
+    """
+    Busca un usuario por RUT y retorna toda la información relacionada:
+    - Datos de CorteFonasa (todos los registros por mes)
+    - Datos de HpTrakcare
+    - Datos de NuevoUsuario (si no se encuentra en otras tablas)
+    - Observaciones
+    - Estado de validación por mes
+    """
+    run = request.query_params.get("run", "").strip()
+    
+    if not run:
+        return Response(
+            {"detail": "El parámetro 'run' es requerido"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    normalized_run = normalize_run(run)
+    if not normalized_run:
+        return Response(
+            {"detail": "RUN inválido"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    # Buscar datos en CorteFonasa
+    cortes = CorteFonasa.objects.filter(run=normalized_run).select_related(
+        'centro_salud'
+    ).prefetch_related('observaciones').order_by('-fecha_corte')
+    
+    # Buscar datos en HpTrakcare
+    hp_records = HpTrakcare.objects.filter(run=normalized_run).select_related(
+        'etnia', 'nacionalidad', 'centro_inscripcion', 'sector'
+    )
+    
+    # Buscar datos en NuevoUsuario
+    nuevos_usuarios = NuevoUsuario.objects.filter(run=normalized_run).select_related(
+        'nacionalidad', 'etnia', 'sector', 'subsector', 'establecimiento'
+    ).order_by('-periodo_anio', '-periodo_mes')
+    
+    # Agrupar cortes por mes y calcular validación
+    cortes_por_mes = {}
+    for corte in cortes:
+        mes_key = f"{corte.fecha_corte.year}-{corte.fecha_corte.month:02d}"
+        mes_label = _format_month_label(corte.fecha_corte.year, corte.fecha_corte.month)
+        
+        if mes_key not in cortes_por_mes:
+            cortes_por_mes[mes_key] = {
+                "mes": mes_label,
+                "fecha_corte": corte.fecha_corte.isoformat(),
+                "registros": [],
+                "validado": None,
+                "observaciones": []
+            }
+        
+        # Determinar si está validado
+        es_validado = _is_validated_corte(corte.aceptado_rechazado, corte.motivo)
+        
+        # Actualizar estado de validación del mes (si hay al menos uno validado, el mes se considera validado)
+        if cortes_por_mes[mes_key]["validado"] is None:
+            cortes_por_mes[mes_key]["validado"] = es_validado
+        elif es_validado:
+            cortes_por_mes[mes_key]["validado"] = True
+        
+        # Agregar registro
+        corte_data = {
+            "id": corte.id,
+            "run": corte.run,
+            "nombres": corte.nombres,
+            "ap_paterno": corte.ap_paterno,
+            "ap_materno": corte.ap_materno,
+            "nombre_completo": corte.nombre_completo,
+            "fecha_nacimiento": corte.fecha_nacimiento.isoformat() if corte.fecha_nacimiento else None,
+            "genero": corte.genero,
+            "tramo": corte.tramo,
+            "centro_salud": corte.centro_salud.nombre if corte.centro_salud else corte.nombre_centro,
+            "nombre_centro": corte.nombre_centro or (corte.centro_salud.nombre if corte.centro_salud else None),
+            "centro_procedencia": corte.centro_de_procedencia,
+            "comuna_procedencia": corte.comuna_de_procedencia,
+            "centro_actual": corte.nombre_centro_actual or corte.centro_actual,
+            "comuna_actual": corte.comuna_actual,
+            "aceptado_rechazado": corte.aceptado_rechazado,
+            "motivo": corte.motivo,
+            "validado": es_validado,
+        }
+        cortes_por_mes[mes_key]["registros"].append(corte_data)
+        
+        # Agregar observaciones del corte
+        for obs in corte.observaciones.all():
+            obs_data = {
+                "id": obs.id,
+                "corte_id": corte.id,
+                "titulo": obs.titulo,
+                "texto": obs.texto,
+                "estado_revision": obs.estado_revision,
+                "tipo": obs.tipo,
+                "autor_nombre": obs.autor_nombre,
+                "created_at": obs.created_at.isoformat(),
+                "adjunto": request.build_absolute_uri(obs.adjunto.url) if obs.adjunto else None,
+            }
+            cortes_por_mes[mes_key]["observaciones"].append(obs_data)
+    
+    # Convertir a lista ordenada
+    cortes_por_mes_list = [
+        {"mes_key": key, **value} 
+        for key, value in sorted(cortes_por_mes.items(), reverse=True)
+    ]
+    
+    # Serializar datos de HpTrakcare
+    hp_data = None
+    if hp_records.exists():
+        hp = hp_records.first()
+        hp_data = {
+            "id": hp.id,
+            "cod_familia": hp.cod_familia,
+            "relacion_parentezco": hp.relacion_parentezco,
+            "id_trakcare": hp.id_trakcare,
+            "cod_registro": hp.cod_registro,
+            "run": hp.run,
+            "ap_paterno": hp.ap_paterno,
+            "ap_materno": hp.ap_materno,
+            "nombre": hp.nombre,
+            "nombre_completo": hp.nombre_completo,
+            "fecha_nacimiento": hp.fecha_nacimiento.isoformat() if hp.fecha_nacimiento else None,
+            "genero": hp.genero,
+            "edad": hp.edad,
+            "direccion": hp.direccion,
+            "telefono": hp.telefono,
+            "telefono_celular": hp.telefono_celular,
+            "telefono_recado": hp.telefono_recado,
+            "servicio_salud": hp.servicio_salud,
+            "etnia": hp.etnia.nombre if hp.etnia else None,
+            "nacionalidad": hp.nacionalidad.nombre if hp.nacionalidad else None,
+            "centro_inscripcion": hp.centro_inscripcion.nombre if hp.centro_inscripcion else None,
+            "sector": hp.sector.nombre if hp.sector else None,
+            "prevision": hp.prevision,
+            "plan_trakcare": hp.plan_trakcare,
+            "prais_trakcare": hp.prais_trakcare,
+            "fecha_incorporacion": hp.fecha_incorporacion.isoformat() if hp.fecha_incorporacion else None,
+            "fecha_ultima_modif": hp.fecha_ultima_modif.isoformat() if hp.fecha_ultima_modif else None,
+            "fecha_defuncion": hp.fecha_defuncion.isoformat() if hp.fecha_defuncion else None,
+            "esta_vivo": hp.esta_vivo,
+        }
+    
+    # Serializar datos de NuevoUsuario
+    nuevos_usuarios_data = []
+    for nuevo in nuevos_usuarios:
+        nuevo_data = {
+            "id": nuevo.id,
+            "run": nuevo.run,
+            "nombre_completo": nuevo.nombre_completo,
+            "nombres": nuevo.nombres,
+            "apellido_paterno": nuevo.apellido_paterno,
+            "apellido_materno": nuevo.apellido_materno,
+            "fecha_inscripcion": nuevo.fecha_inscripcion.isoformat() if nuevo.fecha_inscripcion else None,
+            "periodo": nuevo.periodo_str,
+            "periodo_mes": nuevo.periodo_mes,
+            "periodo_anio": nuevo.periodo_anio,
+            "nacionalidad": nuevo.nacionalidad.nombre if nuevo.nacionalidad else None,
+            "etnia": nuevo.etnia.nombre if nuevo.etnia else None,
+            "sector": nuevo.sector.nombre if nuevo.sector else None,
+            "subsector": nuevo.subsector.nombre if nuevo.subsector else None,
+            "centro": nuevo.centro,
+            "establecimiento": nuevo.establecimiento.nombre if nuevo.establecimiento else None,
+            "codigo_percapita": nuevo.codigo_percapita,
+            "estado": nuevo.estado,
+            "estado_display": nuevo.get_estado_display(),
+            "revisado": nuevo.revisado,
+            "revisado_manualmente": nuevo.revisado_manualmente,
+            "revisado_por": nuevo.revisado_por,
+            "revisado_el": nuevo.revisado_el.isoformat() if nuevo.revisado_el else None,
+            "observaciones": nuevo.observaciones,
+            "observaciones_trakcare": nuevo.observaciones_trakcare,
+            "creado_el": nuevo.creado_el.isoformat() if nuevo.creado_el else None,
+            "creado_por": nuevo.creado_por,
+        }
+        nuevos_usuarios_data.append(nuevo_data)
+    
+    # Respuesta completa
+    response_data = {
+        "run": normalized_run,
+        "encontrado": len(cortes) > 0 or hp_records.exists() or nuevos_usuarios.exists(),
+        "cortes_por_mes": cortes_por_mes_list,
+        "hp_trakcare": hp_data,
+        "nuevos_usuarios": nuevos_usuarios_data,
+        "total_meses": len(cortes_por_mes_list),
+        "total_nuevos_usuarios": len(nuevos_usuarios_data),
+    }
+    
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def buscar_familia(request):
+    """
+    Busca todos los miembros de una familia por RUT.
+    Retorna todos los usuarios que comparten el mismo cod_familia en HpTrakcare.
+    """
+    run = request.query_params.get("run", "").strip()
+
+    if not run:
+        return Response(
+            {"detail": "El parámetro 'run' es requerido"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    normalized_run = normalize_run(run)
+    if not normalized_run:
+        return Response(
+            {"detail": "RUN inválido"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Buscar el registro principal en HpTrakcare
+    hp_principal = HpTrakcare.objects.filter(run=normalized_run).select_related(
+        'etnia', 'nacionalidad', 'centro_inscripcion', 'sector'
+    ).first()
+
+    if not hp_principal or not hp_principal.cod_familia:
+        return Response(
+            {
+                "run": normalized_run,
+                "encontrado": False,
+                "mensaje": "No se encontró registro en HP Trakcare o no tiene código de familia",
+                "cod_familia": None,
+                "miembros": []
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # Buscar todos los miembros de la familia
+    miembros_familia = HpTrakcare.objects.filter(
+        cod_familia=hp_principal.cod_familia
+    ).select_related(
+        'etnia', 'nacionalidad', 'centro_inscripcion', 'sector'
+    ).order_by('relacion_parentezco', 'run')
+
+    # Serializar cada miembro con información resumida de cortes
+    miembros_data = []
+    for miembro in miembros_familia:
+        # Obtener resumen de cortes para este miembro
+        cortes_count = CorteFonasa.objects.filter(run=miembro.run).count()
+        ultimo_corte = CorteFonasa.objects.filter(run=miembro.run).order_by('-fecha_corte').first()
+
+        # Determinar si tiene cortes validados
+        tiene_validados = False
+        if ultimo_corte:
+            tiene_validados = _is_validated_corte(ultimo_corte.aceptado_rechazado, ultimo_corte.motivo)
+
+        miembro_data = {
+            "id": miembro.id,
+            "cod_familia": miembro.cod_familia,
+            "relacion_parentezco": miembro.relacion_parentezco,
+            "run": miembro.run,
+            "nombre_completo": miembro.nombre_completo,
+            "nombre": miembro.nombre,
+            "ap_paterno": miembro.ap_paterno,
+            "ap_materno": miembro.ap_materno,
+            "fecha_nacimiento": miembro.fecha_nacimiento.isoformat() if miembro.fecha_nacimiento else None,
+            "genero": miembro.genero,
+            "edad": miembro.edad,
+            "direccion": miembro.direccion,
+            "telefono": miembro.telefono,
+            "telefono_celular": miembro.telefono_celular,
+            "centro_inscripcion": miembro.centro_inscripcion.nombre if miembro.centro_inscripcion else None,
+            "sector": miembro.sector.nombre if miembro.sector else None,
+            "esta_vivo": miembro.esta_vivo,
+            "es_principal": miembro.run == normalized_run,
+            # Información de cortes
+            "total_cortes": cortes_count,
+            "ultimo_corte": ultimo_corte.fecha_corte.isoformat() if ultimo_corte else None,
+            "tiene_validados": tiene_validados,
+        }
+        miembros_data.append(miembro_data)
+
+    response_data = {
+        "run": normalized_run,
+        "encontrado": True,
+        "cod_familia": hp_principal.cod_familia,
+        "total_miembros": len(miembros_data),
+        "miembros": miembros_data,
+    }
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
 

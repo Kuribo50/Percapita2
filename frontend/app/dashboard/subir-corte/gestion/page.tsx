@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Calendar,
   Database,
@@ -20,16 +20,22 @@ import {
   BarChart3,
   Info,
   CheckCheck,
-  XCircle
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { AnimatedCard } from '@/components/magicui/animated-card';
-import NumberTicker from '@/components/magicui/number-ticker';
-import { ShineBorder } from '@/components/magicui/shine-border';
+  XCircle,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { AnimatedCard } from "@/components/magicui/animated-card";
+import NumberTicker from "@/components/magicui/number-ticker";
+import { ShineBorder } from "@/components/magicui/shine-border";
 
 type CorteMensual = {
   month: string;
@@ -41,10 +47,10 @@ type CorteMensual = {
   monthNumber: number;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-type SortField = 'fecha' | 'total' | 'validated' | 'nonValidated';
-type SortOrder = 'asc' | 'desc';
+type SortField = "fecha" | "total" | "validated" | "nonValidated";
+type SortOrder = "asc" | "desc";
 
 export default function GestionCortesPage() {
   const [cortes, setCortes] = useState<CorteMensual[]>([]);
@@ -53,10 +59,10 @@ export default function GestionCortesPage() {
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('fecha');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<SortField>("fecha");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [selectedYear, setSelectedYear] = useState<string>("all");
 
   const mostrarMensaje = (msg: string, esError = false) => {
     if (esError) {
@@ -73,32 +79,42 @@ export default function GestionCortesPage() {
     setError(null);
     try {
       const response = await fetch(`${API_URL}/api/corte-fonasa/`);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       // Extraer los cortes del summary
-      const cortesData: CorteMensual[] = (data.summary || []).map((item: { month: string; label: string; total?: number; validated?: number; nonValidated?: number; non_validated?: number; }) => {
-        const [year, month] = item.month.split('-').map(Number);
-        return {
-          month: item.month,
-          label: item.label,
-          total: item.total || 0,
-          validated: item.validated || 0,
-          nonValidated: item.nonValidated || item.non_validated || 0,
-          year,
-          monthNumber: month,
-        };
-      });
+      const cortesData: CorteMensual[] = (data.summary || []).map(
+        (item: {
+          month: string;
+          label: string;
+          total?: number;
+          validated?: number;
+          nonValidated?: number;
+          non_validated?: number;
+        }) => {
+          const [year, month] = item.month.split("-").map(Number);
+          return {
+            month: item.month,
+            label: item.label,
+            total: item.total || 0,
+            validated: item.validated || 0,
+            nonValidated: item.nonValidated || item.non_validated || 0,
+            year,
+            monthNumber: month,
+          };
+        }
+      );
 
       setCortes(cortesData);
       setFilteredCortes(cortesData);
     } catch (error) {
-      console.error('Error al cargar cortes:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
+      console.error("Error al cargar cortes:", error);
+      const errorMsg =
+        error instanceof Error ? error.message : "Error desconocido";
       mostrarMensaje(`Error al cargar los cortes: ${errorMsg}`, true);
     } finally {
       setLoading(false);
@@ -115,41 +131,42 @@ export default function GestionCortesPage() {
 
     // Filtrar por búsqueda
     if (searchTerm) {
-      result = result.filter(corte =>
-        corte.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        corte.month.includes(searchTerm)
+      result = result.filter(
+        (corte) =>
+          corte.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          corte.month.includes(searchTerm)
       );
     }
 
     // Filtrar por año
-    if (selectedYear !== 'all') {
-      result = result.filter(corte => corte.year === parseInt(selectedYear));
+    if (selectedYear !== "all") {
+      result = result.filter((corte) => corte.year === parseInt(selectedYear));
     }
 
     // Ordenar
     result.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortField) {
-        case 'fecha':
+        case "fecha":
           if (a.year !== b.year) {
             comparison = a.year - b.year;
           } else {
             comparison = a.monthNumber - b.monthNumber;
           }
           break;
-        case 'total':
+        case "total":
           comparison = a.total - b.total;
           break;
-        case 'validated':
+        case "validated":
           comparison = a.validated - b.validated;
           break;
-        case 'nonValidated':
+        case "nonValidated":
           comparison = a.nonValidated - b.nonValidated;
           break;
       }
 
-      return sortOrder === 'asc' ? comparison : -comparison;
+      return sortOrder === "asc" ? comparison : -comparison;
     });
 
     setFilteredCortes(result);
@@ -157,10 +174,10 @@ export default function GestionCortesPage() {
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortOrder('desc');
+      setSortOrder("desc");
     }
   };
 
@@ -168,35 +185,40 @@ export default function GestionCortesPage() {
     const confirmed = window.confirm(
       `⚠️ ATENCIÓN: Esta acción eliminará PERMANENTEMENTE todos los registros de ${label}.\n\nEsta operación NO se puede deshacer.\n\n¿Deseas continuar?`
     );
-    
+
     if (!confirmed) return;
 
-    const password = prompt('Ingresa la contraseña de administrador para confirmar:');
+    const password = prompt(
+      "Ingresa la contraseña de administrador para confirmar:"
+    );
     if (!password) {
-      mostrarMensaje('Operación cancelada', false);
+      mostrarMensaje("Operación cancelada", false);
       return;
     }
 
     setEliminando(month);
     try {
-      const response = await fetch(`${API_URL}/api/corte-fonasa/?month=${month}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ admin_password: password }),
-      });
+      const response = await fetch(
+        `${API_URL}/api/corte-fonasa/?month=${month}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ admin_password: password }),
+        }
+      );
 
       if (response.ok) {
         await cargarCortes();
         mostrarMensaje(`✓ Corte de ${label} eliminado correctamente`);
       } else {
         const errorData = await response.json();
-        mostrarMensaje(errorData.detail || 'Error al eliminar el corte', true);
+        mostrarMensaje(errorData.detail || "Error al eliminar el corte", true);
       }
     } catch (error) {
-      console.error('Error al eliminar:', error);
-      mostrarMensaje('Error de conexión', true);
+      console.error("Error al eliminar:", error);
+      mostrarMensaje("Error de conexión", true);
     } finally {
       setEliminando(null);
     }
@@ -207,12 +229,17 @@ export default function GestionCortesPage() {
     return Math.round((parte / total) * 100);
   };
 
-  const availableYears = Array.from(new Set(cortes.map(c => c.year))).sort((a, b) => b - a);
+  const availableYears = Array.from(new Set(cortes.map((c) => c.year))).sort(
+    (a, b) => b - a
+  );
 
   const totalRegistros = cortes.reduce((sum, c) => sum + c.total, 0);
   const totalValidados = cortes.reduce((sum, c) => sum + c.validated, 0);
   const totalNoValidados = cortes.reduce((sum, c) => sum + c.nonValidated, 0);
-  const tasaValidacionGlobal = totalRegistros > 0 ? ((totalValidados / totalRegistros) * 100).toFixed(1) : '0';
+  const tasaValidacionGlobal =
+    totalRegistros > 0
+      ? ((totalValidados / totalRegistros) * 100).toFixed(1)
+      : "0";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
@@ -227,7 +254,9 @@ export default function GestionCortesPage() {
             Bases de datos
           </Link>
           <span className="text-gray-400 dark:text-gray-600">/</span>
-          <span className="font-semibold text-gray-900 dark:text-white">Gestión de Cortes FONASA</span>
+          <span className="font-semibold text-gray-900 dark:text-white">
+            Gestión de Cortes FONASA
+          </span>
         </nav>
 
         {/* Header Premium */}
@@ -240,9 +269,12 @@ export default function GestionCortesPage() {
                   <Calendar className="h-8 w-8" />
                 </div>
                 <div>
-                  <h1 className="text-4xl font-bold mb-2">Gestión de Cortes FONASA</h1>
+                  <h1 className="text-4xl font-bold mb-2">
+                    Gestión de Cortes FONASA
+                  </h1>
                   <p className="text-blue-100">
-                    Visualiza y administra los cortes mensuales cargados en el sistema
+                    Visualiza y administra los cortes mensuales cargados en el
+                    sistema
                   </p>
                 </div>
               </div>
@@ -252,7 +284,9 @@ export default function GestionCortesPage() {
                   disabled={loading}
                   className="rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-white/20 flex items-center gap-2 ring-1 ring-white/20 disabled:opacity-50"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                  />
                   Actualizar
                 </button>
                 <Link
@@ -278,14 +312,18 @@ export default function GestionCortesPage() {
         {mensaje && (
           <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 flex items-center gap-3 shadow-sm animate-fade-in">
             <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
-            <p className="text-green-800 dark:text-green-200 font-medium">{mensaje}</p>
+            <p className="text-green-800 dark:text-green-200 font-medium">
+              {mensaje}
+            </p>
           </div>
         )}
-        
+
         {error && (
           <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 flex items-center gap-3 shadow-sm animate-fade-in">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
-            <p className="text-red-800 dark:text-red-200 font-medium">{error}</p>
+            <p className="text-red-800 dark:text-red-200 font-medium">
+              {error}
+            </p>
           </div>
         )}
 
@@ -296,7 +334,9 @@ export default function GestionCortesPage() {
               <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-200 dark:border-blue-900 border-t-blue-600 dark:border-t-blue-400" />
               <Calendar className="absolute inset-0 m-auto h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400 font-medium">Cargando cortes mensuales...</p>
+            <p className="mt-4 text-gray-600 dark:text-gray-400 font-medium">
+              Cargando cortes mensuales...
+            </p>
           </div>
         ) : cortes.length === 0 ? (
           /* Empty State */
@@ -340,7 +380,7 @@ export default function GestionCortesPage() {
                     <CardTitle className="text-3xl font-bold mb-1">
                       <NumberTicker value={cortes.length} />
                     </CardTitle>
-                    <CardDescription>Total de períodos cargados</CardDescription>
+                    <CardDescription>Total de cortes cargados</CardDescription>
                   </CardContent>
                 </Card>
               </AnimatedCard>
@@ -359,7 +399,9 @@ export default function GestionCortesPage() {
                     <CardTitle className="text-3xl font-bold mb-1">
                       <NumberTicker value={totalRegistros} />
                     </CardTitle>
-                    <CardDescription>Total de registros en el sistema</CardDescription>
+                    <CardDescription>
+                      Total de registros en el sistema
+                    </CardDescription>
                   </CardContent>
                 </Card>
               </AnimatedCard>
@@ -378,7 +420,9 @@ export default function GestionCortesPage() {
                     <CardTitle className="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">
                       <NumberTicker value={totalValidados} />
                     </CardTitle>
-                    <CardDescription>Registros validados correctamente</CardDescription>
+                    <CardDescription>
+                      Registros validados correctamente
+                    </CardDescription>
                   </CardContent>
                 </Card>
               </AnimatedCard>
@@ -427,15 +471,17 @@ export default function GestionCortesPage() {
                     className="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="all">Todos los años</option>
-                    {availableYears.map(year => (
-                      <option key={year} value={year}>{year}</option>
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 {/* Ordenamiento */}
                 <button
-                  onClick={() => toggleSort('fecha')}
+                  onClick={() => toggleSort("fecha")}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <ArrowUpDown className="h-4 w-4" />
@@ -446,12 +492,19 @@ export default function GestionCortesPage() {
               {/* Resultados */}
               <div className="mt-4 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
                 <span>
-                  Mostrando <span className="font-semibold text-gray-900 dark:text-white">{filteredCortes.length}</span> de{' '}
-                  <span className="font-semibold text-gray-900 dark:text-white">{cortes.length}</span> cortes
+                  Mostrando{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {filteredCortes.length}
+                  </span>{" "}
+                  de{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {cortes.length}
+                  </span>{" "}
+                  cortes
                 </span>
                 {searchTerm && (
                   <button
-                    onClick={() => setSearchTerm('')}
+                    onClick={() => setSearchTerm("")}
                     className="text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     Limpiar búsqueda
@@ -463,12 +516,14 @@ export default function GestionCortesPage() {
             {/* Lista de Cortes */}
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
               <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-800">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Cortes Mensuales</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Cortes Mensuales
+                </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Gestiona y visualiza los períodos cargados
                 </p>
               </div>
-              
+
               <div className="divide-y divide-gray-200 dark:divide-gray-800">
                 {filteredCortes.length === 0 ? (
                   <div className="p-12 text-center">
@@ -479,8 +534,14 @@ export default function GestionCortesPage() {
                   </div>
                 ) : (
                   filteredCortes.map((corte, index) => {
-                    const porcentajeValidado = calcularPorcentaje(corte.validated, corte.total);
-                    const porcentajeError = calcularPorcentaje(corte.nonValidated, corte.total);
+                    const porcentajeValidado = calcularPorcentaje(
+                      corte.validated,
+                      corte.total
+                    );
+                    const porcentajeError = calcularPorcentaje(
+                      corte.nonValidated,
+                      corte.total
+                    );
                     const tasaValidacion = porcentajeValidado;
 
                     return (
@@ -499,29 +560,44 @@ export default function GestionCortesPage() {
                                       {corte.label}
                                     </h3>
                                     {tasaValidacion >= 95 ? (
-                                      <Badge variant="success" className="flex items-center gap-1">
+                                      <Badge
+                                        variant="success"
+                                        className="flex items-center gap-1"
+                                      >
                                         <CheckCheck className="h-3 w-3" />
                                         Excelente
                                       </Badge>
                                     ) : tasaValidacion >= 80 ? (
-                                      <Badge variant="outline" className="flex items-center gap-1 border-green-500 text-green-600">
+                                      <Badge
+                                        variant="outline"
+                                        className="flex items-center gap-1 border-green-500 text-green-600"
+                                      >
                                         <CheckCircle className="h-3 w-3" />
                                         Bueno
                                       </Badge>
                                     ) : tasaValidacion >= 60 ? (
-                                      <Badge variant="warning" className="flex items-center gap-1">
+                                      <Badge
+                                        variant="warning"
+                                        className="flex items-center gap-1"
+                                      >
                                         <AlertCircle className="h-3 w-3" />
                                         Regular
                                       </Badge>
                                     ) : (
-                                      <Badge variant="destructive" className="flex items-center gap-1">
+                                      <Badge
+                                        variant="destructive"
+                                        className="flex items-center gap-1"
+                                      >
                                         <XCircle className="h-3 w-3" />
                                         Bajo
                                       </Badge>
                                     )}
                                   </div>
                                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Código: <span className="font-mono font-semibold">{corte.month}</span>
+                                    Código:{" "}
+                                    <span className="font-mono font-semibold">
+                                      {corte.month}
+                                    </span>
                                   </p>
                                 </div>
                               </div>
@@ -535,7 +611,7 @@ export default function GestionCortesPage() {
                                     Total Registros
                                   </p>
                                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    {corte.total.toLocaleString('es-CL')}
+                                    {corte.total.toLocaleString("es-CL")}
                                   </p>
                                 </div>
 
@@ -547,14 +623,20 @@ export default function GestionCortesPage() {
                                         <CheckCheck className="h-3.5 w-3.5" />
                                         Validados
                                       </p>
-                                      <Badge variant="success" className="text-xs">
+                                      <Badge
+                                        variant="success"
+                                        className="text-xs"
+                                      >
                                         {porcentajeValidado}%
                                       </Badge>
                                     </div>
                                     <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                      {corte.validated.toLocaleString('es-CL')}
+                                      {corte.validated.toLocaleString("es-CL")}
                                     </p>
-                                    <Progress value={porcentajeValidado} className="h-2 bg-green-100 dark:bg-green-950">
+                                    <Progress
+                                      value={porcentajeValidado}
+                                      className="h-2 bg-green-100 dark:bg-green-950"
+                                    >
                                       <div className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all" />
                                     </Progress>
                                   </CardContent>
@@ -568,14 +650,22 @@ export default function GestionCortesPage() {
                                         <XCircle className="h-3.5 w-3.5" />
                                         No Validados
                                       </p>
-                                      <Badge variant="destructive" className="text-xs">
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs"
+                                      >
                                         {porcentajeError}%
                                       </Badge>
                                     </div>
                                     <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                                      {corte.nonValidated.toLocaleString('es-CL')}
+                                      {corte.nonValidated.toLocaleString(
+                                        "es-CL"
+                                      )}
                                     </p>
-                                    <Progress value={porcentajeError} className="h-2 bg-red-100 dark:bg-red-950">
+                                    <Progress
+                                      value={porcentajeError}
+                                      className="h-2 bg-red-100 dark:bg-red-950"
+                                    >
                                       <div className="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all" />
                                     </Progress>
                                   </CardContent>
@@ -585,15 +675,23 @@ export default function GestionCortesPage() {
 
                             {/* Acciones */}
                             <div className="flex lg:flex-col gap-2">
-                              <Button asChild variant="outline" className="flex-1 lg:flex-none">
-                                <Link href={`/dashboard/bases/corte/${corte.month}`}>
+                              <Button
+                                asChild
+                                variant="outline"
+                                className="flex-1 lg:flex-none"
+                              >
+                                <Link
+                                  href={`/dashboard/bases/corte/${corte.month}`}
+                                >
                                   <Eye className="h-4 w-4 mr-2" />
                                   Ver detalles
                                 </Link>
                               </Button>
                               <Button
                                 variant="destructive"
-                                onClick={() => eliminarCorte(corte.month, corte.label)}
+                                onClick={() =>
+                                  eliminarCorte(corte.month, corte.label)
+                                }
                                 disabled={eliminando === corte.month}
                                 className="flex-1 lg:flex-none"
                               >
@@ -624,11 +722,18 @@ export default function GestionCortesPage() {
 
       <style jsx global>{`
         .bg-grid-white\/10 {
-          background-image: linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+          background-image: linear-gradient(
+              rgba(255, 255, 255, 0.1) 1px,
+              transparent 1px
+            ),
+            linear-gradient(
+              90deg,
+              rgba(255, 255, 255, 0.1) 1px,
+              transparent 1px
+            );
           background-size: 20px 20px;
         }
-        
+
         @keyframes fade-in {
           from {
             opacity: 0;
@@ -639,11 +744,11 @@ export default function GestionCortesPage() {
             transform: translateY(0);
           }
         }
-        
+
         .animate-fade-in {
           animation: fade-in 0.3s ease-out;
         }
       `}</style>
     </div>
   );
-}   
+}

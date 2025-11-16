@@ -248,7 +248,6 @@ export default function DashboardPage() {
 
       const sortedPeriods = Array.from(allPeriods).sort(); // Orden normal (antiguos primero)
 
-      // Limitar períodos según filtro
       let periodsToShow = sortedPeriods;
       if (selectedMonthsRange !== "ULTIMO") {
         const monthsToShow = parseInt(selectedMonthsRange);

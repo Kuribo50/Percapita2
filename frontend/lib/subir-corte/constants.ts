@@ -22,8 +22,6 @@ export const EXPECTED_COLUMNS = {
     "nombreCentro",
     "centroDeProcedencia",
     "comunaDeProcedencia",
-    "centroActual",
-    "comunaActual",
     "aceptadoRechazado",
     "motivo",
   ],
@@ -73,18 +71,64 @@ export const EXPECTED_COLUMNS = {
   ],
 } as const;
 
+export const REQUIRED_COLUMNS: Record<DatasetKey, readonly string[]> = {
+  corte: [
+    "run",
+    "nombres",
+    "apPaterno",
+    "apMaterno",
+    "fechaNacimiento",
+    "genero",
+    "tramo",
+    "fehcaCorte",
+    "nombreCentro",
+    "centroDeProcedencia",
+    "comunaDeProcedencia",
+    "aceptadoRechazado",
+    "motivo",
+  ],
+  trakcare: EXPECTED_COLUMNS.trakcare,
+  nuevosUsuarios: EXPECTED_COLUMNS.nuevosUsuarios,
+};
+
+/**
+ * Alias manuales para columnas por dataset. Las llaves se normalizan en tiempo de ejecución
+ * mediante `normalizeColumnName`, por lo que aquí podemos usar el formato que resulte más legible.
+ */
 export const DATASET_COLUMN_ALIASES: Partial<
   Record<DatasetKey, Record<string, string>>
 > = {
   corte: {
-    fechaCorte: "fehcaCorte",
+    rut: "run",
+    run_beneficiario: "run",
+    rut_beneficiario: "run",
+    documento_identidad: "run",
+    sexo: "genero",
     fecha_corte: "fehcaCorte",
-    nombre_centro: "nombreCentro",
-    centro_de_procedencia: "centroDeProcedencia",
-    comuna_de_procedencia: "comunaDeProcedencia",
-    centro_actual: "centroActual",
-    comuna_actual: "comunaActual",
-    aceptado_rechazado: "aceptadoRechazado",
+    fecha_de_corte: "fehcaCorte",
+    fecha_corte_periodo: "fehcaCorte",
+    resultado: "aceptadoRechazado",
+    estado: "aceptadoRechazado",
+    motivo_rechazo: "motivo",
+    observacion: "motivo",
+    centro_inscripcion: "nombreCentro",
+    establecimiento: "nombreCentro",
+  },
+  trakcare: {
+    rut: "RUN",
+    documento_identidad: "RUN",
+    telefono_fijo: "telefono",
+    telefono_principal: "telefono",
+    telefono_alternativo: "TelefonoRecado",
+    celular: "telefonoCelular",
+  },
+  nuevosUsuarios: {
+    rut: "run",
+    documento_identidad: "run",
+    codigo_sector: "codigoSector",
+    codigo_percapita: "codPercapita",
+    centro_salud: "centro",
+    estado_registro: "estado",
   },
 };
 

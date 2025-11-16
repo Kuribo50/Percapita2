@@ -51,13 +51,20 @@ function formatLabel(segment: string) {
   return decoded.charAt(0).toUpperCase() + decoded.slice(1);
 }
 
-export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout }: NavbarProps) {
+export default function Navbar({
+  onToggleSidebar,
+  isSidebarOpen,
+  user,
+  onLogout,
+}: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { selectedNuevoUsuario } = useSelectedNuevoUsuario();
 
-  const [isDark, setIsDark] = useState(() =>
-    typeof window !== "undefined" && document.documentElement.classList.contains("dark"),
+  const [isDark, setIsDark] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      document.documentElement.classList.contains("dark")
   );
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -80,7 +87,10 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const segments = useMemo(() => pathname.split("/").filter(Boolean), [pathname]);
+  const segments = useMemo(
+    () => pathname.split("/").filter(Boolean),
+    [pathname]
+  );
 
   const selectedNuevoUsuarioName = useMemo(() => {
     const raw = selectedNuevoUsuario?.nombreCompleto?.trim();
@@ -113,12 +123,34 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
       base.length >= 3
     ) {
       const updated = [...base];
-      
+
       // Agregar el nombre como un nuevo breadcrumb separado
       if (updated.length > 3) {
         updated.splice(3);
       }
-      
+
+      updated.push({
+        href: pathname,
+        label: selectedNuevoUsuarioName,
+      });
+
+      return updated;
+    }
+
+    // Si estamos en la vista de detalle de un usuario no validado, agregar el nombre como breadcrumb adicional
+    if (
+      selectedNuevoUsuarioName &&
+      pathname.startsWith("/dashboard/usuarios-no-validados/") &&
+      pathname !== "/dashboard/usuarios-no-validados" &&
+      base.length >= 2
+    ) {
+      const updated = [...base];
+
+      // Agregar el nombre como un nuevo breadcrumb separado
+      if (updated.length > 2) {
+        updated.splice(2);
+      }
+
       updated.push({
         href: pathname,
         label: selectedNuevoUsuarioName,
@@ -141,8 +173,13 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
 
   const displayName = useMemo(() => {
     if (!user) return "Usuario";
-    const parts = [user.nombre, user.apellido, user.establecimiento].filter(Boolean);
-    const fullName = [user.nombre, user.apellido].filter(Boolean).join(" ").trim();
+    const parts = [user.nombre, user.apellido, user.establecimiento].filter(
+      Boolean
+    );
+    const fullName = [user.nombre, user.apellido]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
     return fullName || parts[0] || user.email || "Usuario";
   }, [user]);
 
@@ -152,7 +189,7 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
     if (!query) return NAV_ITEMS;
     const normalized = query.toLowerCase();
     return NAV_ITEMS.filter((item) =>
-      `${item.section} ${item.title}`.toLowerCase().includes(normalized),
+      `${item.section} ${item.title}`.toLowerCase().includes(normalized)
     );
   }, [query]);
 
@@ -162,7 +199,7 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
       setQuery("");
       router.push(href);
     },
-    [router],
+    [router]
   );
 
   const ActiveIcon = currentItem?.icon ?? NAV_ITEMS[0].icon;
@@ -225,7 +262,10 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
                             {crumb.label}
                           </span>
                         ) : (
-                          <Link className="hover:text-foreground" href={crumb.href}>
+                          <Link
+                            className="hover:text-foreground"
+                            href={crumb.href}
+                          >
                             {crumb.label}
                           </Link>
                         )}
@@ -245,7 +285,9 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
             onClick={() => setIsCommandOpen(true)}
           >
             <Search className="h-4 w-4" />
-            <span className="text-xs text-muted-foreground">Buscar (Ctrl + K)</span>
+            <span className="text-xs text-muted-foreground">
+              Buscar (Ctrl + K)
+            </span>
           </Button>
 
           <Button
@@ -261,7 +303,11 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
               animate={{ rotate: 0, opacity: 1 }}
               transition={{ duration: 0.2 }}
             >
-              {isDark ? <SunMedium className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {isDark ? (
+                <SunMedium className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
             </motion.div>
           </Button>
 
@@ -270,8 +316,12 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
               <Button variant="ghost" className="px-2">
                 <div className="flex items-center gap-3">
                   <div className="hidden text-right md:block">
-                    <p className="text-sm font-medium leading-4">{displayName}</p>
-                    <p className="text-xs text-muted-foreground">{displayRole}</p>
+                    <p className="text-sm font-medium leading-4">
+                      {displayName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {displayRole}
+                    </p>
                   </div>
                   <div className="grid h-9 w-9 place-items-center rounded-full bg-linear-to-br from-primary/70 to-primary/30">
                     <UserIcon className="h-5 w-5" />
@@ -339,12 +389,19 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen, user, onLogout 
                           <ActiveIcon className="h-5 w-5 text-primary" />
                         </span>
                         <span className="flex-1">
-                          <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                          <p className="text-sm font-semibold text-foreground">
+                            {item.title}
+                          </p>
                           {item.description && (
-                            <span className="text-xs text-muted-foreground">{item.description}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {item.description}
+                            </span>
                           )}
                         </span>
-                        <Badge variant="secondary" className="text-[10px] uppercase">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] uppercase"
+                        >
                           {item.section}
                         </Badge>
                       </button>

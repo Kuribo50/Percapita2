@@ -1,5 +1,7 @@
 from typing import Optional
+import uuid
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -181,6 +183,12 @@ class Establecimiento(models.Model):
 # MODELOS PRINCIPALES
 # =============================================================================
 
+def observacion_upload_to(instance, filename: str) -> str:
+	ext = filename.split(".")[-1] if "." in filename else "bin"
+	uid = uuid.uuid4().hex
+	return f"observaciones/{instance.corte_id or 'sin-id'}/{uid}.{ext}"
+
+
 class CorteFonasa(models.Model):
 	"""Registro de cortes mensuales de FONASA."""
 	run = models.CharField(max_length=12, db_index=True)
@@ -205,7 +213,9 @@ class CorteFonasa(models.Model):
 	# Información de procedencia y destino
 	centro_de_procedencia = models.CharField(max_length=255, blank=True, help_text="Centro de salud de origen")
 	comuna_de_procedencia = models.CharField(max_length=100, blank=True, help_text="Comuna de origen")
-	centro_actual = models.CharField(max_length=255, blank=True, help_text="Centro de salud actual/destino")
+	
+	nombre_centro_actual = models.CharField(max_length=255, blank=True, help_text="Nombre del centro actual/destino")
+	centro_actual = models.CharField(max_length=255, blank=True, help_text="Centro de salud actual/destino (legacy)")
 	comuna_actual = models.CharField(max_length=100, blank=True, help_text="Comuna actual/destino")
 
 	# Estado y motivo
@@ -666,3 +676,61 @@ class Usuario(models.Model):
 
 	def __str__(self) -> str:
 		return f"{self.nombre_completo} ({self.username})"
+
+
+class CorteFonasaObservacion(models.Model):
+	class EstadoRevision(models.TextChoices):
+		PENDIENTE = "PENDIENTE", "Pendiente"
+		CONTACTADO = "CONTACTADO", "Contactado"
+		AGENDADO = "AGENDADO", "Agendado"
+		RESUELTO = "RESUELTO", "Resuelto"
+		NO_LOCALIZADO = "NO_LOCALIZADO", "No localizado"
+
+	class TipoObservacion(models.TextChoices):
+		PREDEFINIDA = "PREDEFINIDA", "Predefinida"
+		MANUAL = "MANUAL", "Manual"
+
+	corte = models.ForeignKey(
+		CorteFonasa,
+		on_delete=models.CASCADE,
+		related_name="observaciones",
+	)
+	autor = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.SET_NULL,
+		null=True,
+		blank=True,
+		related_name="observaciones_cortes",
+	)
+	autor_nombre = models.CharField(
+		max_length=255,
+		blank=True,
+		help_text="Nombre o RUT del usuario que creó la observación"
+	)
+	estado_revision = models.CharField(
+		max_length=20,
+		choices=EstadoRevision.choices,
+		default=EstadoRevision.PENDIENTE,
+		db_index=True,
+	)
+	tipo = models.CharField(
+		max_length=20,
+		choices=TipoObservacion.choices,
+		default=TipoObservacion.PREDEFINIDA,
+	)
+	titulo = models.CharField(max_length=255, blank=True)
+	texto = models.TextField(blank=True)
+	adjunto = models.FileField(upload_to=observacion_upload_to, blank=True, null=True)
+	metadata = models.JSONField(blank=True, null=True, default=dict)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ["-created_at"]
+		indexes = [
+			models.Index(fields=["corte", "-created_at"]),
+			models.Index(fields=["estado_revision", "corte"]),
+		]
+
+	def __str__(self) -> str:
+		return f"Observacion({self.corte_id}, {self.estado_revision})"

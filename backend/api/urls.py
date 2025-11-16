@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path("corte-fonasa/", views.upload_corte_fonasa, name="corte-fonasa-upload"),
     path("corte-fonasa/<int:pk>/", views.corte_fonasa_detail, name="corte-fonasa-detail"),
+    path("corte-fonasa/historial-mensual/", views.corte_fonasa_historial_mensual, name="corte-fonasa-historial-mensual"),
     path("hp-trakcare/", views.upload_hp_trakcare, name="hp-trakcare-upload"),
     path("hp-trakcare/<int:pk>/", views.hp_trakcare_detail, name="hp-trakcare-detail"),
     path("hp-trakcare/buscar/", views.hp_trakcare_buscar, name="hp-trakcare-buscar"),
@@ -17,6 +18,20 @@ urlpatterns = [
     path("nuevos-usuarios/estadisticas/", views.nuevos_usuarios_estadisticas, name="nuevos-usuarios-estadisticas"),
     path("nuevos-usuarios/exportar/", views.exportar_nuevos_usuarios, name="exportar-nuevos-usuarios"),
     path("nuevos-usuarios/historial/", views.nuevos_usuarios_historial, name="nuevos-usuarios-historial"),
+
+    # Usuarios No Validados
+    path("usuarios-no-validados/", views.usuarios_no_validados_list, name="usuarios-no-validados-list"),
+    path("usuarios-no-validados/<int:pk>/", views.usuario_no_validado_detail, name="usuario-no-validado-detail"),
+    path(
+        "usuarios-no-validados/<str:run>/observaciones/",
+        views.usuario_no_validado_observaciones,
+        name="usuario-no-validado-observaciones",
+    ),
+    path(
+        "usuarios-no-validados/<str:run>/observaciones/<int:observacion_id>/",
+        views.usuario_no_validado_observacion_detail,
+        name="usuario-no-validado-observacion-detail",
+    ),
 
     # Validaciones
     path("validaciones/", views.validaciones_list, name="validaciones-list"),
@@ -56,4 +71,8 @@ urlpatterns = [
     path("usuarios/", views.usuarios_list, name="usuarios-list"),
     path("usuarios/<int:pk>/", views.usuario_detail, name="usuario-detail"),
     path("usuarios/<int:pk>/cambiar-password/", views.cambiar_password, name="cambiar-password"),
+    
+    # Búsqueda de Usuario
+    path("buscar-usuario/", views.buscar_usuario, name="buscar-usuario"),
+    path("buscar-familia/", views.buscar_familia, name="buscar-familia"),
 ]

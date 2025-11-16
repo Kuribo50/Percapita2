@@ -244,7 +244,7 @@ export default function GestionNuevosUsuariosPage() {
       nombreCompleto: usuario.nombreCompleto,
       estado: usuario.estado,
     });
-    router.push(`/dashboard/nuevos-usuarios/gestion/${usuario.id}`);
+    router.push(`/dashboard/revision-de-usuarios/nuevos-usuarios/gestion/${usuario.id}`);
   };
 
   const handleEditUsuario = (usuario: NuevoUsuario) => {

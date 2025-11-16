@@ -1,16 +1,27 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import RutInput from '@/components/RutInput';
+import { useState } from "react";
+import RutInput from "@/components/RutInput";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function RenovacionNIPPage() {
-  const [rut, setRut] = useState('');
+  const [rut, setRut] = useState("");
 
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Renovación de NIP</h1>
-        <p className="text-gray-600">Gestión de renovaciones de Número de Identificación Personal</p>
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+          Renovación de NIP
+        </h1>
+        <p className="text-gray-600">
+          Gestión de renovaciones de Número de Identificación Personal
+        </p>
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -23,7 +34,9 @@ export default function RenovacionNIPPage() {
               required
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">NIP Actual</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                NIP Actual
+              </label>
               <input
                 type="text"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -31,17 +44,25 @@ export default function RenovacionNIPPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Motivo Renovación</label>
-              <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                <option>Seleccione un motivo</option>
-                <option>Pérdida</option>
-                <option>Robo</option>
-                <option>Deterioro</option>
-                <option>Vencimiento</option>
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Motivo Renovación
+              </label>
+              <Select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleccione un motivo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="perdida">Pérdida</SelectItem>
+                  <SelectItem value="robo">Robo</SelectItem>
+                  <SelectItem value="deterioro">Deterioro</SelectItem>
+                  <SelectItem value="vencimiento">Vencimiento</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Solicitud</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fecha Solicitud
+              </label>
               <input
                 type="date"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -49,7 +70,9 @@ export default function RenovacionNIPPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Observaciones
+            </label>
             <textarea
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"

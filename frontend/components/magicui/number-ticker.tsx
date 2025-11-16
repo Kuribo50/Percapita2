@@ -1,34 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
+import { useEffect, useRef } from "react";
+import { useInView, useMotionValue, useSpring } from "framer-motion";
 
-// Simple static number with a unified fade-in. No counting.
+interface NumberTickerProps {
+  value: number;
+  direction?: "up" | "down";
+  delay?: number;
+  className?: string;
+  decimalPlaces?: number;
+}
+
 export default function NumberTicker({
   value,
-  className,
-}: {
-  value: number;
-  className?: string;
-}) {
-  // Trigger a one-shot fade-in on mount so all instances appear a la vez.
-  const [visible, setVisible] = useState(false);
+  direction = "up",
+  delay = 0,
+  className = "",
+  decimalPlaces = 0,
+}: NumberTickerProps) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const motionValue = useMotionValue(direction === "down" ? value : 0);
+  const springValue = useSpring(motionValue, {
+    damping: 60,
+    stiffness: 100,
+  });
+  const isInView = useInView(ref, { once: true, margin: "0px" });
+
   useEffect(() => {
-    const id = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
+    if (isInView) {
+      setTimeout(() => {
+        motionValue.set(direction === "down" ? 0 : value);
+      }, delay * 1000);
+    }
+  }, [motionValue, isInView, delay, value, direction]);
 
-  const formatted = Intl.NumberFormat("es-CL").format(Math.round(value));
+  useEffect(() => {
+    springValue.on("change", (latest) => {
+      if (ref.current) {
+        ref.current.textContent = Intl.NumberFormat("es-CL", {
+          minimumFractionDigits: decimalPlaces,
+          maximumFractionDigits: decimalPlaces,
+        }).format(Number(latest.toFixed(decimalPlaces)));
+      }
+    });
+  }, [springValue, decimalPlaces]);
 
-  return (
-    <span
-      className={cn(
-        "inline-block tabular-nums text-black dark:text-white tracking-wider transition-opacity duration-500 ease-out",
-        visible ? "opacity-100" : "opacity-0",
-        className
-      )}
-    >
-      {formatted}
-    </span>
-  );
+  return <span className={className} ref={ref} />;
 }

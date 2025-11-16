@@ -32,9 +32,18 @@ interface SidebarLinkProps {
   badge?: string;
   active: boolean;
   revealText: boolean;
+  iconColor?: string;
 }
 
-function SidebarLink({ href, title, Icon, badge, active, revealText }: SidebarLinkProps) {
+function SidebarLink({
+  href,
+  title,
+  Icon,
+  badge,
+  active,
+  revealText,
+  iconColor,
+}: SidebarLinkProps) {
   const content = (
     <Link
       href={href}
@@ -44,7 +53,7 @@ function SidebarLink({ href, title, Icon, badge, active, revealText }: SidebarLi
         revealText ? "justify-start" : "justify-center",
         active
           ? "text-foreground"
-          : "text-muted-foreground hover:text-foreground",
+          : "text-muted-foreground hover:text-foreground"
       )}
       aria-current={active ? "page" : undefined}
     >
@@ -55,7 +64,7 @@ function SidebarLink({ href, title, Icon, badge, active, revealText }: SidebarLi
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
         />
       )}
-      <Icon className="relative z-10 h-5 w-5" />
+      <Icon className={cn("relative z-10 h-5 w-5", iconColor)} />
       {revealText && (
         <div className="relative z-10 flex w-full items-center justify-between gap-2">
           <span className="truncate">{title}</span>
@@ -103,12 +112,15 @@ export default function Sidebar({ isOpen }: SidebarProps) {
       <aside
         className={cn(
           "fixed top-16 left-0 z-30 h-[calc(100vh-4rem)] border-r border-border/40 bg-background/80 backdrop-blur transition-[width] duration-300",
-          isOpen ? "w-72" : "w-16",
+          isOpen ? "w-72" : "w-16"
         )}
         aria-label="Barra lateral de navegación"
       >
         <ScrollArea className="h-full px-3 py-6">
-          <nav className="flex flex-col gap-6" aria-label="Secciones de navegación">
+          <nav
+            className="flex flex-col gap-6"
+            aria-label="Secciones de navegación"
+          >
             {NAV_SECTIONS.map((section) => (
               <motion.div
                 key={section.id}
@@ -133,6 +145,7 @@ export default function Sidebar({ isOpen }: SidebarProps) {
                       badge={item.badge}
                       active={Boolean(activeIds.get(item.id))}
                       revealText={isOpen}
+                      iconColor={item.iconColor}
                     />
                   ))}
                 </div>
